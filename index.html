@@ -515,7 +515,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script>
-    // 모든 카페 데이터 (사진 추가)
+    // 모든 카페 데이터 (20개 - 각 구별 분산)
     const allCafes = [
       { id: 1, name: '커피 1947', gu: '강남구', lat: 37.4979, lng: 127.0276, address: '강남구 테헤란로 123', rating: 4.7, reviews: 450, hours: '08:00-22:00', amenities: ['주차', '와이파이', '테라스'], desc: '프리미엄 스페셜티 커피', type: 'responsive', image: 'https://images.unsplash.com/photo-1495474472645-4c71bcdd2d18?w=400&h=300&fit=crop' },
       { id: 2, name: '달콤한 베이커리', gu: '강남구', lat: 37.4985, lng: 127.0290, address: '강남구 강남대로 456', rating: 4.5, reviews: 320, hours: '09:00-21:00', amenities: ['주차', '포장'], desc: '수제 베이커리 & 커피', type: 'new', image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop' },
@@ -526,7 +526,19 @@
       { id: 7, name: '커피연구소', gu: '마포구', lat: 37.5460, lng: 126.9220, address: '마포구 월드컵로 444', rating: 4.8, reviews: 520, hours: '08:00-22:00', amenities: ['와이파이', '콘센트'], desc: '커피 과학의 모든 것', type: 'responsive', image: 'https://images.unsplash.com/photo-1486314847381-3a2073ae886c?w=400&h=300&fit=crop' },
       { id: 8, name: '수유 카페', gu: '강북구', lat: 37.6397, lng: 127.0251, address: '강북구 도봉로 555', rating: 4.4, reviews: 210, hours: '09:00-20:00', amenities: ['주차'], desc: '동네 사랑받는 카페', type: 'established', image: 'https://images.unsplash.com/photo-1488146221393-80ecf1cfc020?w=400&h=300&fit=crop' },
       { id: 9, name: '고궁 뷰 카페', gu: '종로구', lat: 37.5731, lng: 126.9779, address: '종로구 종로 666', rating: 4.7, reviews: 580, hours: '09:00-21:30', amenities: ['와이파이', '테라스'], desc: '경복궁 뷰 카페', type: 'responsive', image: 'https://images.unsplash.com/photo-1442512595331-e89e7e52e140?w=400&h=300&fit=crop' },
-      { id: 10, name: '전통 차 카페', gu: '종로구', lat: 37.5735, lng: 126.9785, address: '종로구 인사동길 777', rating: 4.6, reviews: 320, hours: '10:00-20:00', amenities: ['포장'], desc: '전통 차와 현대 감성', type: 'established', image: 'https://images.unsplash.com/photo-1512568400610-62da47e1b7d0?w=400&h=300&fit=crop' }
+      { id: 10, name: '전통 차 카페', gu: '종로구', lat: 37.5735, lng: 126.9785, address: '종로구 인사동길 777', rating: 4.6, reviews: 320, hours: '10:00-20:00', amenities: ['포장'], desc: '전통 차와 현대 감성', type: 'established', image: 'https://images.unsplash.com/photo-1512568400610-62da47e1b7d0?w=400&h=300&fit=crop' },
+
+      // 추가 10개 카페
+      { id: 11, name: '중로 카페마실', gu: '중구', lat: 37.5635, lng: 126.9988, address: '중구 명동길 100', rating: 4.5, reviews: 290, hours: '08:00-21:00', amenities: ['와이파이', '포장'], desc: '지역 명소 카페', type: 'new', image: 'https://images.unsplash.com/photo-1555939594-58d7cb561481?w=400&h=300&fit=crop' },
+      { id: 12, name: '한남 아뜨리에', gu: '용산구', lat: 37.5386, lng: 126.9905, address: '용산구 한남로 85', rating: 4.6, reviews: 410, hours: '09:00-22:00', amenities: ['주차', '와이파이', '콘센트'], desc: '예술감성 카페', type: 'responsive', image: 'https://images.unsplash.com/photo-1511920170033-f8396924c348?w=400&h=300&fit=crop' },
+      { id: 13, name: '성수 더 블렌딩', gu: '성동구', lat: 37.5648, lng: 127.0372, address: '성동구 성수로 200', rating: 4.7, reviews: 480, hours: '08:30-21:30', amenities: ['주차', '와이파이', '테라스'], desc: '블렌딩 커피 전문점', type: 'responsive', image: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400&h=300&fit=crop' },
+      { id: 14, name: '광장 로스터리', gu: '광진구', lat: 37.5386, lng: 127.0847, address: '광진구 천호대로 300', rating: 4.4, reviews: 260, hours: '10:00-20:00', amenities: ['주차', '포장'], desc: '자체 로스팅 커피숍', type: 'new', image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b3f3?w=400&h=300&fit=crop' },
+      { id: 15, name: '동대문 클래식', gu: '동대문구', lat: 37.5731, lng: 127.0409, address: '동대문구 청계로 150', rating: 4.5, reviews: 350, hours: '09:00-21:00', amenities: ['와이파이', '콘센트'], desc: '클래식한 분위기 카페', type: 'established', image: 'https://images.unsplash.com/photo-1495474472645-4c71bcdd2d18?w=400&h=300&fit=crop' },
+      { id: 16, name: '묵동 감성', gu: '중랑구', lat: 37.6054, lng: 127.0922, address: '중랑구 용리단로 220', rating: 4.6, reviews: 310, hours: '08:00-22:00', amenities: ['주차', '와이파이'], desc: '감성적인 로컬 카페', type: 'new', image: 'https://images.unsplash.com/photo-1457694716424-d6a2975e0f21?w=400&h=300&fit=crop' },
+      { id: 17, name: '성북동 뷰', gu: '성북구', lat: 37.6093, lng: 127.0159, address: '성북구 성북로 180', rating: 4.7, reviews: 420, hours: '09:00-21:00', amenities: ['테라스', '와이파이'], desc: '뷰 좋은 카페', type: 'responsive', image: 'https://images.unsplash.com/photo-1442512595331-e89e7e52e140?w=400&h=300&fit=crop' },
+      { id: 18, name: '도봉산 카페', gu: '도봉구', lat: 37.6668, lng: 127.0481, address: '도봉구 도봉로 350', rating: 4.4, reviews: 180, hours: '10:00-19:00', amenities: ['주차', '포장'], desc: '산 근처 휴양 카페', type: 'established', image: 'https://images.unsplash.com/photo-1495474472645-4c71bcdd2d18?w=400&h=300&fit=crop' },
+      { id: 19, name: '노원 힐링', gu: '노원구', lat: 37.6552, lng: 127.0760, address: '노원구 노원로 280', rating: 4.5, reviews: 240, hours: '09:00-21:00', amenities: ['주차', '와이파이'], desc: '힐링의 공간', type: 'new', image: 'https://images.unsplash.com/photo-1521017713171-f3379857c896?w=400&h=300&fit=crop' },
+      { id: 20, name: '은평 아트', gu: '은평구', lat: 37.6024, lng: 126.9293, address: '은평구 은평로 220', rating: 4.6, reviews: 380, hours: '08:00-22:00', amenities: ['와이파이', '콘센트', '테라스'], desc: '아트 갤러리 카페', type: 'responsive', image: 'https://images.unsplash.com/photo-1493857671505-72967e2e2760?w=400&h=300&fit=crop' }
     ];
 
     let selectedCafeId = null;
@@ -664,6 +676,7 @@
     // 초기화
     addMarkers(allCafes);
     renderCafeList(allCafes);
+    document.getElementById('panelTitle').textContent = `전체 카페 (${allCafes.length}개)`;
 
     // 이벤트
     document.getElementById('zoomIn').addEventListener('click', () => map.zoomIn());
