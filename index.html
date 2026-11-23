@@ -169,6 +169,29 @@
       border: 1px solid #10B981;
     }
 
+    .naver-btn {
+      display: block;
+      text-align: center;
+      background: #00C73C;
+      color: white !important;
+      padding: 0.75rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      margin-top: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      width: 100%;
+    }
+
+    .naver-btn:hover {
+      background: #00A82E;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 199, 60, 0.3);
+    }
+
     .info-panel::-webkit-scrollbar {
       width: 6px;
     }
@@ -326,6 +349,7 @@
         <span class="info-value" id="recommendScore">72%</span>
       </div>
       <div id="saturationBadge"></div>
+      <a id="naverMapLink" href="#" target="_blank" class="naver-btn">🗺️ 네이버맵 보기</a>
     </div>
   </div>
 
@@ -464,6 +488,10 @@
 
       const badgeClass = data.cafes >= 31 ? 'saturation-high' : data.cafes >= 11 ? 'saturation-medium' : 'saturation-low';
       document.getElementById('saturationBadge').innerHTML = `<div class="saturation-badge ${badgeClass}">📊 ${saturation}</div>`;
+
+      // 네이버맵 링크 설정
+      const naverMapUrl = `https://map.naver.com/p/@${data.lat},${data.lng},15z`;
+      document.getElementById('naverMapLink').href = naverMapUrl;
 
       document.getElementById('infoPanel').classList.add('active');
     }
