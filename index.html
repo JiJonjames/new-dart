@@ -14,493 +14,616 @@
 
     html, body {
       height: 100%;
-      font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+      font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui;
     }
 
     body {
-      background: #0F1419;
-      color: #E8EBED;
+      background: #fff;
+      color: #333;
       display: flex;
       flex-direction: column;
     }
 
-    .header {
-      background: rgba(26, 32, 44, 0.95);
-      backdrop-filter: blur(10px);
-      border-bottom: 1px solid #2D3748;
-      padding: 1rem 1.25rem;
-      z-index: 100;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    /* ===== MAP CANVAS ===== */
+    #map {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
     }
 
-    .header-title {
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin-bottom: 0.75rem;
-      letter-spacing: -0.5px;
+    .map-container {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      height: 100%;
     }
 
+    /* ===== FLOATING SEARCH BAR (LEFT) ===== */
+    .floating-search {
+      position: fixed;
+      top: 1.5rem;
+      left: 1.5rem;
+      width: 320px;
+      z-index: 20;
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: white;
+      border-radius: 24px;
+      padding: 0.75rem 1rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      border: 1px solid #eee;
+    }
+
+    .search-box input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 0.95rem;
+      color: #333;
+    }
+
+    .search-box input::placeholder {
+      color: #999;
+    }
+
+    /* ===== FILTER CHIPS ===== */
+    .filter-chips {
+      display: flex;
+      gap: 0.6rem;
+      margin-top: 1rem;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+    }
+
+    .chip {
+      white-space: nowrap;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      border: 1px solid #ddd;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.85rem;
+    }
+
+    .chip:hover {
+      border-color: #4A9EFF;
+      background: #f0f7ff;
+    }
+
+    .chip.active {
+      background: #4A9EFF;
+      color: white;
+      border-color: #4A9EFF;
+    }
+
+    /* ===== MAP CONTROLS (RIGHT) ===== */
+    .map-controls {
+      position: fixed;
+      right: 1.5rem;
+      top: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      z-index: 20;
+    }
+
+    .control-button {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      background: white;
+      border: 1px solid #eee;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s;
+    }
+
+    .control-button:hover {
+      background: #f5f5f5;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    /* ===== LEGEND (TOP CENTER) ===== */
     .legend {
+      position: fixed;
+      top: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
       display: flex;
       gap: 1.5rem;
-      flex-wrap: wrap;
-      font-size: 0.85rem;
+      background: white;
+      padding: 0.75rem 1.25rem;
+      border-radius: 24px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      border: 1px solid #eee;
+      z-index: 20;
     }
 
     .legend-item {
       display: flex;
       align-items: center;
       gap: 0.6rem;
+      font-size: 0.85rem;
+      color: #666;
     }
 
     .legend-color {
-      width: 24px;
-      height: 24px;
-      border-radius: 4px;
-      border: 1px solid #3D4758;
-      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     }
 
-    .legend-text {
-      color: #A0AEC0;
-    }
-
-    .main-container {
-      flex: 1;
-      position: relative;
-      display: flex;
-      min-height: 0;
-    }
-
-    #map {
-      flex: 1;
-      width: 100%;
-      height: 100%;
-    }
-
-    .info-panel {
+    /* ===== CAFE DETAIL MODAL ===== */
+    .modal-overlay {
       position: fixed;
-      bottom: 1.5rem;
-      right: 1.5rem;
-      width: 340px;
-      max-height: 65vh;
-      background: rgba(26, 32, 44, 0.98);
-      backdrop-filter: blur(10px);
-      border: 1px solid #2D3748;
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
-      overflow-y: auto;
-      z-index: 10000;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 40;
       display: none;
     }
 
-    .info-panel.active {
+    .modal-overlay.active {
       display: block;
-      animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    @keyframes slideIn {
+    .cafe-detail-modal {
+      position: fixed;
+      bottom: 0;
+      right: 0;
+      left: 0;
+      width: 100%;
+      max-height: 90vh;
+      background: white;
+      border-radius: 16px 16px 0 0;
+      z-index: 50;
+      display: none;
+      overflow-y: auto;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
       from {
-        opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(100%);
       }
       to {
-        opacity: 1;
         transform: translateY(0);
       }
     }
 
-    .info-title {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: #4A9EFF;
-      margin-bottom: 1rem;
-      word-break: keep-all;
+    .cafe-detail-modal.active {
+      display: block;
     }
 
-    .info-stat {
+    .modal-image {
+      width: 100%;
+      height: 240px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       display: flex;
-      justify-content: space-between;
-      padding: 0.8rem 0;
-      border-bottom: 1px solid #2D3748;
-      font-size: 0.9rem;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 3rem;
     }
 
-    .info-stat:last-of-type {
+    .modal-content {
+      padding: 1.5rem 1.25rem;
+    }
+
+    .modal-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #222;
+      margin-bottom: 0.5rem;
+    }
+
+    .modal-rating {
+      color: #ff9800;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+
+    .modal-info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-info-item {
+      padding: 0.75rem;
+      background: #f9f9f9;
+      border-radius: 8px;
+    }
+
+    .modal-info-label {
+      font-size: 0.75rem;
+      color: #999;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+
+    .modal-info-value {
+      font-size: 0.9rem;
+      color: #222;
+      font-weight: 600;
+    }
+
+    .modal-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-section-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #222;
+      margin-bottom: 0.6rem;
+      text-transform: uppercase;
+    }
+
+    .modal-amenities {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .amenity-tag {
+      padding: 0.4rem 0.8rem;
+      background: #e3f2fd;
+      color: #1976d2;
+      border-radius: 16px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .review-item {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .review-item:last-child {
       border-bottom: none;
     }
 
-    .info-label {
-      color: #A0AEC0;
-      font-weight: 500;
+    .review-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.4rem;
     }
 
-    .info-value {
-      font-weight: 700;
-      color: #4A9EFF;
-    }
-
-    .saturation-badge {
-      display: inline-block;
-      padding: 0.5rem 0.8rem;
-      border-radius: 6px;
-      font-size: 0.8rem;
+    .review-name {
       font-weight: 600;
-      margin-top: 1rem;
-      text-align: center;
+      color: #222;
+      font-size: 0.85rem;
     }
 
-    .saturation-high {
-      background: rgba(239, 68, 68, 0.2);
-      color: #EF4444;
-      border: 1px solid #EF4444;
+    .review-date {
+      font-size: 0.75rem;
+      color: #999;
     }
 
-    .saturation-medium {
-      background: rgba(245, 158, 11, 0.2);
-      color: #F59E0B;
-      border: 1px solid #F59E0B;
+    .review-rating {
+      color: #ff9800;
+      font-size: 0.85rem;
+      margin-bottom: 0.4rem;
     }
 
-    .saturation-low {
-      background: rgba(16, 185, 129, 0.2);
-      color: #10B981;
-      border: 1px solid #10B981;
+    .review-text {
+      font-size: 0.8rem;
+      color: #666;
+      line-height: 1.4;
     }
 
     .naver-btn {
       display: block;
-      text-align: center;
-      background: #00C73C;
-      color: white !important;
-      padding: 0.75rem;
-      border-radius: 6px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      text-decoration: none;
-      margin-top: 1rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      border: none;
       width: 100%;
+      padding: 0.8rem;
+      margin-top: 1.5rem;
+      background: #00c73c;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      transition: all 0.2s;
+      font-size: 0.9rem;
     }
 
     .naver-btn:hover {
-      background: #00A82E;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 199, 60, 0.3);
+      background: #00a82e;
     }
 
-    .info-panel::-webkit-scrollbar {
-      width: 6px;
-    }
-
-    .info-panel::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    .info-panel::-webkit-scrollbar-thumb {
-      background: #2D3748;
-      border-radius: 3px;
-    }
-
-    .info-panel::-webkit-scrollbar-thumb:hover {
-      background: #4A9EFF;
-    }
-
-    .leaflet-container {
-      background: #0F1419;
-      font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
-    }
-
-    .leaflet-popup-content-wrapper {
-      background: #1A202C;
-      color: #E8EBED;
-      border-radius: 8px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-    }
-
-    .leaflet-popup-tip {
-      background: #1A202C;
-    }
-
-    .leaflet-popup-content {
-      margin: 0;
-      font-size: 0.9rem;
-    }
-
-    .popup-title {
-      font-weight: 700;
-      color: #4A9EFF;
-      margin-bottom: 0.5rem;
-    }
-
-    .popup-stat {
+    .close-modal-btn {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: rgba(0, 0, 0, 0.5);
+      border: none;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      font-size: 1.5rem;
+      cursor: pointer;
+      z-index: 60;
       display: flex;
-      justify-content: space-between;
-      padding: 0.3rem 0;
-      font-size: 0.85rem;
+      align-items: center;
+      justify-content: center;
     }
 
-    .popup-label {
-      color: #A0AEC0;
-    }
-
-    .popup-value {
-      font-weight: 600;
-      color: #4A9EFF;
-    }
-
-    .leaflet-control-attribution {
-      background: rgba(26, 32, 44, 0.9) !important;
-      color: #A0AEC0 !important;
-    }
-
-    .leaflet-control {
-      background: rgba(26, 32, 44, 0.9) !important;
-      border: 1px solid #2D3748 !important;
-      border-radius: 6px !important;
-    }
-
-    .leaflet-control-zoom-in,
-    .leaflet-control-zoom-out {
-      color: #4A9EFF !important;
-      background-color: rgba(26, 32, 44, 0.95) !important;
-      border-bottom: 1px solid #2D3748 !important;
-    }
-
-    .leaflet-control-zoom-in:hover,
-    .leaflet-control-zoom-out:hover {
-      background-color: #2D3748 !important;
+    /* ===== LEAFLET CUSTOMIZATION ===== */
+    .leaflet-container {
+      font-family: inherit;
+      background: #fff;
     }
 
     @media (max-width: 768px) {
-      .header {
-        padding: 0.75rem 1rem;
-      }
-
-      .header-title {
-        font-size: 1.25rem;
+      .floating-search {
+        width: calc(100% - 2rem);
+        left: 1rem;
+        right: 1rem;
       }
 
       .legend {
-        gap: 1rem;
-        font-size: 0.75rem;
+        display: none;
       }
 
-      .legend-color {
-        width: 18px;
-        height: 18px;
-      }
-
-      .info-panel {
-        position: fixed;
-        width: calc(100% - 2rem);
-        bottom: 1rem;
-        right: 1rem;
-        left: 1rem;
-        max-height: 50vh;
-        z-index: 10000;
+      .map-controls {
+        bottom: auto;
+        top: 50%;
+        transform: translateY(-50%);
+        right: 0.75rem;
       }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1 class="header-title">📍 서울 카페 포화도 분석 지도</h1>
-    <div class="legend">
-      <div class="legend-item">
-        <div class="legend-color" style="background: #10B981;"></div>
-        <span class="legend-text">저포화 (1-10개)</span>
-      </div>
-      <div class="legend-item">
-        <div class="legend-color" style="background: #F59E0B;"></div>
-        <span class="legend-text">중포화 (11-30개)</span>
-      </div>
-      <div class="legend-item">
-        <div class="legend-color" style="background: #EF4444;"></div>
-        <span class="legend-text">고포화 (31개+)</span>
-      </div>
+  <!-- Map Canvas -->
+  <div class="map-container">
+    <div id="map"></div>
+  </div>
+
+  <!-- Floating Search Bar (Left) -->
+  <div class="floating-search">
+    <div class="search-box">
+      <span>🔍</span>
+      <input type="text" id="searchInput" placeholder="카페 또는 구 검색..." />
+    </div>
+    <div class="filter-chips">
+      <div class="chip active" data-filter="all">전체</div>
+      <div class="chip" data-filter="new">신규 카페</div>
+      <div class="chip" data-filter="responsive">고평점</div>
     </div>
   </div>
 
-  <div class="main-container">
-    <div id="map"></div>
+  <!-- Legend (Top Center) -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-color" style="background: #667eea;"></div>
+      <span>신규 (1-3년)</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #764ba2;"></div>
+      <span>확립됨 (10년+)</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #f093fb;"></div>
+      <span>고평점 (4.5+)</span>
+    </div>
+  </div>
 
-    <div class="info-panel" id="infoPanel">
-      <div class="info-title" id="guName">선택해주세요</div>
-      <div class="info-stat">
-        <span class="info-label">카페 수</span>
-        <span class="info-value" id="cafeCount">0</span>
+  <!-- Map Controls (Right) -->
+  <div class="map-controls">
+    <button class="control-button" id="zoomIn" title="확대">+</button>
+    <button class="control-button" id="zoomOut" title="축소">−</button>
+    <button class="control-button" id="centerLocation" title="현재 위치">📍</button>
+  </div>
+
+  <!-- Cafe Detail Modal -->
+  <div class="modal-overlay" id="modalOverlay"></div>
+  <button class="close-modal-btn" id="closeModal">✕</button>
+  <div class="cafe-detail-modal" id="cafeDetailModal">
+    <div class="modal-image" id="modalImage">☕</div>
+    <div class="modal-content">
+      <div class="modal-title" id="modalTitle">카페명</div>
+      <div class="modal-rating" id="modalRating">★ 4.5 (120 리뷰)</div>
+
+      <div class="modal-info-grid">
+        <div class="modal-info-item">
+          <div class="modal-info-label">주소</div>
+          <div class="modal-info-value" id="modalAddress">주소</div>
+        </div>
+        <div class="modal-info-item">
+          <div class="modal-info-label">시간</div>
+          <div class="modal-info-value" id="modalHours">09:00-22:00</div>
+        </div>
       </div>
-      <div class="info-stat">
-        <span class="info-label">평균 평점</span>
-        <span class="info-value" id="avgRating">4.5</span>
+
+      <div class="modal-section">
+        <div class="modal-section-title">편의시설</div>
+        <div class="modal-amenities" id="modalAmenities"></div>
       </div>
-      <div class="info-stat">
-        <span class="info-label">포화도</span>
-        <span class="info-value" id="saturationLevel">중간</span>
+
+      <div class="modal-section">
+        <div class="modal-section-title">설명</div>
+        <div id="modalDesc" style="font-size: 0.85rem; color: #666; line-height: 1.5;"></div>
       </div>
-      <div class="info-stat">
-        <span class="info-label">인구</span>
-        <span class="info-value" id="population">0</span>
+
+      <div class="modal-section">
+        <div class="modal-section-title">최근 리뷰</div>
+        <div id="modalReviews"></div>
       </div>
-      <div class="info-stat">
-        <span class="info-label">추천도</span>
-        <span class="info-value" id="recommendScore">72%</span>
-      </div>
-      <div id="saturationBadge"></div>
-      <a id="naverMapLink" href="#" target="_blank" class="naver-btn">🗺️ 네이버맵 보기</a>
+
+      <a id="naverMapLink" href="#" target="_blank" class="naver-btn">🗺️ 네이버맵에서 보기</a>
     </div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script>
-    // 서울 자치구 데이터 (25개 구)
-    const guData = {
-      '종로구': { lat: 37.5731, lng: 126.9779, cafes: 45, rating: 4.6, population: 160000 },
-      '중구': { lat: 37.5635, lng: 126.9988, cafes: 38, rating: 4.5, population: 130000 },
-      '용산구': { lat: 37.5386, lng: 126.9905, cafes: 42, rating: 4.4, population: 240000 },
-      '성동구': { lat: 37.5648, lng: 127.0372, cafes: 28, rating: 4.3, population: 300000 },
-      '광진구': { lat: 37.5386, lng: 127.0847, cafes: 32, rating: 4.4, population: 370000 },
-      '동대문구': { lat: 37.5731, lng: 127.0409, cafes: 35, rating: 4.3, population: 350000 },
-      '중랑구': { lat: 37.6054, lng: 127.0922, cafes: 22, rating: 4.2, population: 410000 },
-      '성북구': { lat: 37.6093, lng: 127.0159, cafes: 25, rating: 4.3, population: 410000 },
-      '강북구': { lat: 37.6397, lng: 127.0251, cafes: 18, rating: 4.2, population: 320000 },
-      '도봉구': { lat: 37.6668, lng: 127.0481, cafes: 15, rating: 4.1, population: 350000 },
-      '노원구': { lat: 37.6552, lng: 127.0760, cafes: 20, rating: 4.2, population: 580000 },
-      '은평구': { lat: 37.6024, lng: 126.9293, cafes: 24, rating: 4.3, population: 480000 },
-      '서대문구': { lat: 37.5796, lng: 126.9365, cafes: 32, rating: 4.4, population: 310000 },
-      '마포구': { lat: 37.5456, lng: 126.9212, cafes: 48, rating: 4.5, population: 390000 },
-      '양천구': { lat: 37.5169, lng: 126.8669, cafes: 26, rating: 4.3, population: 450000 },
-      '강서구': { lat: 37.5508, lng: 126.8252, cafes: 29, rating: 4.2, population: 600000 },
-      '구로구': { lat: 37.4954, lng: 126.8550, cafes: 31, rating: 4.3, population: 420000 },
-      '금천구': { lat: 37.4379, lng: 126.8929, cafes: 19, rating: 4.2, population: 290000 },
-      '영등포구': { lat: 37.5261, lng: 126.8976, cafes: 36, rating: 4.4, population: 380000 },
-      '동작구': { lat: 37.4954, lng: 126.9448, cafes: 34, rating: 4.3, population: 410000 },
-      '관악구': { lat: 37.4816, lng: 126.9549, cafes: 27, rating: 4.2, population: 510000 },
-      '서초구': { lat: 37.4845, lng: 127.0325, cafes: 56, rating: 4.6, population: 430000 },
-      '강남구': { lat: 37.4979, lng: 127.0276, cafes: 68, rating: 4.7, population: 540000 },
-      '송파구': { lat: 37.5148, lng: 127.1123, cafes: 44, rating: 4.5, population: 650000 },
-      '강동구': { lat: 37.5301, lng: 127.1407, cafes: 32, rating: 4.3, population: 450000 }
-    };
+    // 모든 카페 데이터 (각 카페별 위도/경도 포함)
+    const allCafes = [
+      // 강남구
+      { id: 1, name: '커피 1947', gu: '강남구', lat: 37.4979, lng: 127.0276, address: '강남구 테헤란로 123', rating: 4.7, reviews: 450, hours: '08:00-22:00', amenities: ['주차', '와이파이', '테라스'], desc: '프리미엄 스페셜티 커피', type: 'responsive', reviews_list: [{ name: '김OO', rating: 5, text: '아메리카노 최고!' }, { name: '이OO', rating: 4, text: '분위기 좋아요' }] },
+      { id: 2, name: '달콤한 베이커리', gu: '강남구', lat: 37.4985, lng: 127.0290, address: '강남구 강남대로 456', rating: 4.5, reviews: 320, hours: '09:00-21:00', amenities: ['주차', '포장'], desc: '수제 베이커리 & 커피', type: 'new', reviews_list: [{ name: '박OO', rating: 5, text: '크로아상 신선함' }] },
+      { id: 3, name: '명동 카페숲', gu: '강남구', lat: 37.4970, lng: 127.0260, address: '강남구 삼성로 789', rating: 4.8, reviews: 680, hours: '07:00-23:00', amenities: ['와이파이', '콘센트', '테라스'], desc: '차분한 분위기의 프리미엄 카페', type: 'responsive', reviews_list: [{ name: '최OO', rating: 5, text: '직원 친절함' }] },
 
-    // 포화도 색상 함수
-    function getColor(cafes) {
-      if (cafes >= 31) return '#EF4444';
-      if (cafes >= 11) return '#F59E0B';
-      return '#10B981';
+      // 서초구
+      { id: 4, name: '압구정 카페', gu: '서초구', lat: 37.4845, lng: 127.0325, address: '서초구 압구정로 111', rating: 4.6, reviews: 520, hours: '08:30-21:30', amenities: ['주차', '포장'], desc: '트렌디한 감성의 카페', type: 'responsive', reviews_list: [{ name: '김OO', rating: 4, text: '사진 맛집' }] },
+      { id: 5, name: '스페셜 로스터', gu: '서초구', lat: 37.4850, lng: 127.0315, address: '서초구 양재천로 222', rating: 4.7, reviews: 410, hours: '09:00-22:00', amenities: ['와이파이', '테라스'], desc: '직화 로스팅 스페셜티', type: 'responsive', reviews_list: [{ name: '이OO', rating: 5, text: '원두 품질 최고' }] },
+
+      // 마포구
+      { id: 6, name: '합정 감성카페', gu: '마포구', lat: 37.5456, lng: 126.9212, address: '마포구 합정로 333', rating: 4.5, reviews: 380, hours: '10:00-21:00', amenities: ['주차', '포장'], desc: '감성 넘치는 복합문화공간', type: 'new', reviews_list: [{ name: '박OO', rating: 4, text: '인생사진 명소' }] },
+      { id: 7, name: '커피연구소', gu: '마포구', lat: 37.5460, lng: 126.9220, address: '마포구 월드컵로 444', rating: 4.8, reviews: 520, hours: '08:00-22:00', amenities: ['와이파이', '콘센트'], desc: '커피 과학의 모든 것', type: 'responsive', reviews_list: [{ name: '최OO', rating: 5, text: '바리스타 최고' }] },
+
+      // 강북구
+      { id: 8, name: '수유 카페', gu: '강북구', lat: 37.6397, lng: 127.0251, address: '강북구 도봉로 555', rating: 4.4, reviews: 210, hours: '09:00-20:00', amenities: ['주차'], desc: '동네 사랑받는 카페', type: 'established', reviews_list: [{ name: '김OO', rating: 4, text: '친근한 분위기' }] },
+
+      // 종로구
+      { id: 9, name: '고궁 뷰 카페', gu: '종로구', lat: 37.5731, lng: 126.9779, address: '종로구 종로 666', rating: 4.7, reviews: 580, hours: '09:00-21:30', amenities: ['와이파이', '테라스'], desc: '경복궁 뷰 카페', type: 'responsive', reviews_list: [{ name: '이OO', rating: 5, text: '야경 짱' }] },
+      { id: 10, name: '전통 차 카페', gu: '종로구', lat: 37.5735, lng: 126.9785, address: '종로구 인사동길 777', rating: 4.6, reviews: 320, hours: '10:00-20:00', amenities: ['포장'], desc: '전통 차와 현대 감성', type: 'established', reviews_list: [{ name: '박OO', rating: 5, text: '차 맛 진짜 좋음' }] }
+    ];
+
+    // 색상 함수
+    function getCafeColor(type) {
+      const colors = {
+        'new': '#667eea',
+        'established': '#764ba2',
+        'responsive': '#f093fb'
+      };
+      return colors[type] || '#667eea';
     }
 
-    function getSaturationLevel(cafes) {
-      if (cafes >= 31) return '고포화';
-      if (cafes >= 11) return '중포화';
-      return '저포화';
-    }
-
-    // 맵 초기화
-    const map = L.map('map').setView([37.5665, 127.0106], 11);
-
-    // OpenStreetMap 타일 레이어
+    // 맵
+    const map = L.map('map').setView([37.5665, 127.0106], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-      maxZoom: 19,
-      minZoom: 10
+      attribution: '© OpenStreetMap',
+      maxZoom: 19
     }).addTo(map);
 
-    // 모든 마커 그룹
     const markerGroup = L.featureGroup().addTo(map);
 
-    // 각 구에 마커 추가
-    Object.entries(guData).forEach(([guName, data]) => {
-      const color = getColor(data.cafes);
-      const saturation = getSaturationLevel(data.cafes);
+    // 각 카페마다 개별 마커 추가
+    allCafes.forEach(cafe => {
+      const color = getCafeColor(cafe.type);
 
-      // 커스텀 마커 HTML
       const markerHtml = `
         <div style="
           background: ${color};
           color: white;
           border-radius: 50%;
-          width: 44px;
-          height: 44px;
+          width: 36px;
+          height: 36px;
           display: flex;
           align-items: center;
           justify-content: center;
           font-weight: 700;
-          font-size: 15px;
-          border: 3px solid #0F1419;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+          font-size: 0.75rem;
+          border: 3px solid white;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
           cursor: pointer;
-          transition: transform 0.2s;
+          text-align: center;
+          line-height: 1.1;
         ">
-          ${data.cafes}
+          ☕
         </div>
       `;
 
-      // 마커 생성
-      const marker = L.marker([data.lat, data.lng], {
+      const marker = L.marker([cafe.lat, cafe.lng], {
         icon: L.divIcon({
           html: markerHtml,
-          iconSize: [44, 44],
-          className: 'custom-marker'
+          iconSize: [36, 36],
+          className: 'cafe-marker'
         })
       }).addTo(markerGroup);
 
-      // 팝업 콘텐츠
       const popupContent = `
-        <div class="popup-title">${guName}</div>
-        <div class="popup-stat">
-          <span class="popup-label">카페:</span>
-          <span class="popup-value">${data.cafes}개</span>
-        </div>
-        <div class="popup-stat">
-          <span class="popup-label">평점:</span>
-          <span class="popup-value">${data.rating}</span>
-        </div>
-        <div class="popup-stat">
-          <span class="popup-label">포화도:</span>
-          <span class="popup-value">${saturation}</span>
-        </div>
+        <div style="text-align: center; font-weight: 600; margin-bottom: 4px;">${cafe.name}</div>
+        <div style="font-size: 0.8rem; color: #ff9800;">★ ${cafe.rating} (${cafe.reviews})</div>
       `;
 
-      marker.bindPopup(popupContent, {
-        className: 'custom-popup'
-      });
-
-      // 클릭 이벤트
-      marker.on('click', () => {
-        showGuInfo(guName, data, color);
-        marker.openPopup();
-      });
+      marker.bindPopup(popupContent);
+      marker.on('click', () => showCafeDetail(cafe));
     });
 
-    // 정보 패널 표시 함수
-    function showGuInfo(guName, data, color) {
-      const saturation = getSaturationLevel(data.cafes);
-      const recommendScore = Math.min(100, Math.round(data.rating * 15));
+    // 카페 상세정보 표시
+    function showCafeDetail(cafe) {
+      document.getElementById('modalTitle').textContent = cafe.name;
+      document.getElementById('modalRating').textContent = `★ ${cafe.rating} (${cafe.reviews} 리뷰)`;
+      document.getElementById('modalAddress').textContent = cafe.address;
+      document.getElementById('modalHours').textContent = cafe.hours;
+      document.getElementById('modalDesc').textContent = cafe.desc;
 
-      document.getElementById('guName').textContent = guName;
-      document.getElementById('cafeCount').textContent = data.cafes + '개';
-      document.getElementById('avgRating').textContent = data.rating;
-      document.getElementById('saturationLevel').textContent = saturation;
-      document.getElementById('population').textContent = (data.population / 10000).toFixed(1) + '만명';
-      document.getElementById('recommendScore').textContent = recommendScore + '%';
+      const amenities = cafe.amenities.map(a => `<div class="amenity-tag">${a}</div>`).join('');
+      document.getElementById('modalAmenities').innerHTML = amenities;
 
-      const badgeClass = data.cafes >= 31 ? 'saturation-high' : data.cafes >= 11 ? 'saturation-medium' : 'saturation-low';
-      document.getElementById('saturationBadge').innerHTML = `<div class="saturation-badge ${badgeClass}">📊 ${saturation}</div>`;
+      const reviews = cafe.reviews_list.map(r => `
+        <div class="review-item">
+          <div class="review-header">
+            <div class="review-name">${r.name}</div>
+            <div class="review-date">최근</div>
+          </div>
+          <div class="review-rating">★ ${r.rating}</div>
+          <div class="review-text">${r.text}</div>
+        </div>
+      `).join('');
+      document.getElementById('modalReviews').innerHTML = reviews;
 
-      // 네이버맵 링크 설정
-      const naverMapUrl = `https://map.naver.com/p/@${data.lat},${data.lng},15z`;
-      document.getElementById('naverMapLink').href = naverMapUrl;
+      const naverUrl = `https://map.naver.com/p/search/${encodeURIComponent(cafe.name)}`;
+      document.getElementById('naverMapLink').href = naverUrl;
 
-      document.getElementById('infoPanel').classList.add('active');
+      document.getElementById('cafeDetailModal').classList.add('active');
+      document.getElementById('modalOverlay').classList.add('active');
+      map.setView([cafe.lat, cafe.lng], 15);
     }
 
-    // 초기 로드 (강남구 선택) - 즉시 표시
-    showGuInfo('강남구', guData['강남구'], getColor(68));
-    map.setView([37.4979, 127.0276], 12);
+    // 이벤트
+    document.getElementById('closeModal').addEventListener('click', () => {
+      document.getElementById('cafeDetailModal').classList.remove('active');
+      document.getElementById('modalOverlay').classList.remove('active');
+    });
+
+    document.getElementById('modalOverlay').addEventListener('click', () => {
+      document.getElementById('cafeDetailModal').classList.remove('active');
+      document.getElementById('modalOverlay').classList.remove('active');
+    });
+
+    document.getElementById('zoomIn').addEventListener('click', () => map.zoomIn());
+    document.getElementById('zoomOut').addEventListener('click', () => map.zoomOut());
+    document.getElementById('centerLocation').addEventListener('click', () => {
+      map.setView([37.5665, 127.0106], 12);
+    });
+
+    // 검색
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      if (query.length > 0) {
+        const found = allCafes.find(c => c.name.toLowerCase().includes(query) || c.gu.includes(query));
+        if (found) {
+          map.setView([found.lat, found.lng], 15);
+          setTimeout(() => showCafeDetail(found), 300);
+        }
+      }
+    });
   </script>
 </body>
 </html>
