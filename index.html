@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>서울 카페 포화도 분석 지도</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background: #0F1419;
+      color: #E8EBED;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      background: rgba(26, 32, 44, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid #2D3748;
+      padding: 1rem 1.25rem;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .header-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      letter-spacing: -0.5px;
+    }
+
+    .legend {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      font-size: 0.85rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .legend-color {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      border: 1px solid #3D4758;
+      flex-shrink: 0;
+    }
+
+    .legend-text {
+      color: #A0AEC0;
+    }
+
+    .main-container {
+      flex: 1;
+      position: relative;
+      display: flex;
+      min-height: 0;
+    }
+
+    #map {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+    }
+
+    .info-panel {
+      position: absolute;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      width: 340px;
+      max-height: 65vh;
+      background: rgba(26, 32, 44, 0.98);
+      backdrop-filter: blur(10px);
+      border: 1px solid #2D3748;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+      overflow-y: auto;
+      z-index: 50;
+      display: none;
+    }
+
+    .info-panel.active {
+      display: block;
+      animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .info-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #4A9EFF;
+      margin-bottom: 1rem;
+      word-break: keep-all;
+    }
+
+    .info-stat {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.8rem 0;
+      border-bottom: 1px solid #2D3748;
+      font-size: 0.9rem;
+    }
+
+    .info-stat:last-of-type {
+      border-bottom: none;
+    }
+
+    .info-label {
+      color: #A0AEC0;
+      font-weight: 500;
+    }
+
+    .info-value {
+      font-weight: 700;
+      color: #4A9EFF;
+    }
+
+    .saturation-badge {
+      display: inline-block;
+      padding: 0.5rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-top: 1rem;
+      text-align: center;
+    }
+
+    .saturation-high {
+      background: rgba(239, 68, 68, 0.2);
+      color: #EF4444;
+      border: 1px solid #EF4444;
+    }
+
+    .saturation-medium {
+      background: rgba(245, 158, 11, 0.2);
+      color: #F59E0B;
+      border: 1px solid #F59E0B;
+    }
+
+    .saturation-low {
+      background: rgba(16, 185, 129, 0.2);
+      color: #10B981;
+      border: 1px solid #10B981;
+    }
+
+    .info-panel::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .info-panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .info-panel::-webkit-scrollbar-thumb {
+      background: #2D3748;
+      border-radius: 3px;
+    }
+
+    .info-panel::-webkit-scrollbar-thumb:hover {
+      background: #4A9EFF;
+    }
+
+    .leaflet-container {
+      background: #0F1419;
+      font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+    }
+
+    .leaflet-popup-content-wrapper {
+      background: #1A202C;
+      color: #E8EBED;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    .leaflet-popup-tip {
+      background: #1A202C;
+    }
+
+    .leaflet-popup-content {
+      margin: 0;
+      font-size: 0.9rem;
+    }
+
+    .popup-title {
+      font-weight: 700;
+      color: #4A9EFF;
+      margin-bottom: 0.5rem;
+    }
+
+    .popup-stat {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.3rem 0;
+      font-size: 0.85rem;
+    }
+
+    .popup-label {
+      color: #A0AEC0;
+    }
+
+    .popup-value {
+      font-weight: 600;
+      color: #4A9EFF;
+    }
+
+    .leaflet-control-attribution {
+      background: rgba(26, 32, 44, 0.9) !important;
+      color: #A0AEC0 !important;
+    }
+
+    .leaflet-control {
+      background: rgba(26, 32, 44, 0.9) !important;
+      border: 1px solid #2D3748 !important;
+      border-radius: 6px !important;
+    }
+
+    .leaflet-control-zoom-in,
+    .leaflet-control-zoom-out {
+      color: #4A9EFF !important;
+      background-color: rgba(26, 32, 44, 0.95) !important;
+      border-bottom: 1px solid #2D3748 !important;
+    }
+
+    .leaflet-control-zoom-in:hover,
+    .leaflet-control-zoom-out:hover {
+      background-color: #2D3748 !important;
+    }
+
+    @media (max-width: 768px) {
+      .header {
+        padding: 0.75rem 1rem;
+      }
+
+      .header-title {
+        font-size: 1.25rem;
+      }
+
+      .legend {
+        gap: 1rem;
+        font-size: 0.75rem;
+      }
+
+      .legend-color {
+        width: 18px;
+        height: 18px;
+      }
+
+      .info-panel {
+        width: calc(100% - 2rem);
+        bottom: 1rem;
+        right: 1rem;
+        left: 1rem;
+        max-height: 50vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1 class="header-title">📍 서울 카페 포화도 분석 지도</h1>
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-color" style="background: #10B981;"></div>
+        <span class="legend-text">저포화 (1-10개)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: #F59E0B;"></div>
+        <span class="legend-text">중포화 (11-30개)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: #EF4444;"></div>
+        <span class="legend-text">고포화 (31개+)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <div id="map"></div>
+
+    <div class="info-panel" id="infoPanel">
+      <div class="info-title" id="guName">선택해주세요</div>
+      <div class="info-stat">
+        <span class="info-label">카페 수</span>
+        <span class="info-value" id="cafeCount">0</span>
+      </div>
+      <div class="info-stat">
+        <span class="info-label">평균 평점</span>
+        <span class="info-value" id="avgRating">4.5</span>
+      </div>
+      <div class="info-stat">
+        <span class="info-label">포화도</span>
+        <span class="info-value" id="saturationLevel">중간</span>
+      </div>
+      <div class="info-stat">
+        <span class="info-label">인구</span>
+        <span class="info-value" id="population">0</span>
+      </div>
+      <div class="info-stat">
+        <span class="info-label">추천도</span>
+        <span class="info-value" id="recommendScore">72%</span>
+      </div>
+      <div id="saturationBadge"></div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script>
+    // 서울 자치구 데이터 (25개 구)
+    const guData = {
+      '종로구': { lat: 37.5731, lng: 126.9779, cafes: 45, rating: 4.6, population: 160000 },
+      '중구': { lat: 37.5635, lng: 126.9988, cafes: 38, rating: 4.5, population: 130000 },
+      '용산구': { lat: 37.5386, lng: 126.9905, cafes: 42, rating: 4.4, population: 240000 },
+      '성동구': { lat: 37.5648, lng: 127.0372, cafes: 28, rating: 4.3, population: 300000 },
+      '광진구': { lat: 37.5386, lng: 127.0847, cafes: 32, rating: 4.4, population: 370000 },
+      '동대문구': { lat: 37.5731, lng: 127.0409, cafes: 35, rating: 4.3, population: 350000 },
+      '중랑구': { lat: 37.6054, lng: 127.0922, cafes: 22, rating: 4.2, population: 410000 },
+      '성북구': { lat: 37.6093, lng: 127.0159, cafes: 25, rating: 4.3, population: 410000 },
+      '강북구': { lat: 37.6397, lng: 127.0251, cafes: 18, rating: 4.2, population: 320000 },
+      '도봉구': { lat: 37.6668, lng: 127.0481, cafes: 15, rating: 4.1, population: 350000 },
+      '노원구': { lat: 37.6552, lng: 127.0760, cafes: 20, rating: 4.2, population: 580000 },
+      '은평구': { lat: 37.6024, lng: 126.9293, cafes: 24, rating: 4.3, population: 480000 },
+      '서대문구': { lat: 37.5796, lng: 126.9365, cafes: 32, rating: 4.4, population: 310000 },
+      '마포구': { lat: 37.5456, lng: 126.9212, cafes: 48, rating: 4.5, population: 390000 },
+      '양천구': { lat: 37.5169, lng: 126.8669, cafes: 26, rating: 4.3, population: 450000 },
+      '강서구': { lat: 37.5508, lng: 126.8252, cafes: 29, rating: 4.2, population: 600000 },
+      '구로구': { lat: 37.4954, lng: 126.8550, cafes: 31, rating: 4.3, population: 420000 },
+      '금천구': { lat: 37.4379, lng: 126.8929, cafes: 19, rating: 4.2, population: 290000 },
+      '영등포구': { lat: 37.5261, lng: 126.8976, cafes: 36, rating: 4.4, population: 380000 },
+      '동작구': { lat: 37.4954, lng: 126.9448, cafes: 34, rating: 4.3, population: 410000 },
+      '관악구': { lat: 37.4816, lng: 126.9549, cafes: 27, rating: 4.2, population: 510000 },
+      '서초구': { lat: 37.4845, lng: 127.0325, cafes: 56, rating: 4.6, population: 430000 },
+      '강남구': { lat: 37.4979, lng: 127.0276, cafes: 68, rating: 4.7, population: 540000 },
+      '송파구': { lat: 37.5148, lng: 127.1123, cafes: 44, rating: 4.5, population: 650000 },
+      '강동구': { lat: 37.5301, lng: 127.1407, cafes: 32, rating: 4.3, population: 450000 }
+    };
+
+    // 포화도 색상 함수
+    function getColor(cafes) {
+      if (cafes >= 31) return '#EF4444';
+      if (cafes >= 11) return '#F59E0B';
+      return '#10B981';
+    }
+
+    function getSaturationLevel(cafes) {
+      if (cafes >= 31) return '고포화';
+      if (cafes >= 11) return '중포화';
+      return '저포화';
+    }
+
+    // 맵 초기화
+    const map = L.map('map').setView([37.5665, 127.0106], 11);
+
+    // OpenStreetMap 타일 레이어
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19,
+      minZoom: 10
+    }).addTo(map);
+
+    // 모든 마커 그룹
+    const markerGroup = L.featureGroup().addTo(map);
+
+    // 각 구에 마커 추가
+    Object.entries(guData).forEach(([guName, data]) => {
+      const color = getColor(data.cafes);
+      const saturation = getSaturationLevel(data.cafes);
+
+      // 커스텀 마커 HTML
+      const markerHtml = `
+        <div style="
+          background: ${color};
+          color: white;
+          border-radius: 50%;
+          width: 44px;
+          height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: 15px;
+          border: 3px solid #0F1419;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+          cursor: pointer;
+          transition: transform 0.2s;
+        ">
+          ${data.cafes}
+        </div>
+      `;
+
+      // 마커 생성
+      const marker = L.marker([data.lat, data.lng], {
+        icon: L.divIcon({
+          html: markerHtml,
+          iconSize: [44, 44],
+          className: 'custom-marker'
+        })
+      }).addTo(markerGroup);
+
+      // 팝업 콘텐츠
+      const popupContent = `
+        <div class="popup-title">${guName}</div>
+        <div class="popup-stat">
+          <span class="popup-label">카페:</span>
+          <span class="popup-value">${data.cafes}개</span>
+        </div>
+        <div class="popup-stat">
+          <span class="popup-label">평점:</span>
+          <span class="popup-value">${data.rating}</span>
+        </div>
+        <div class="popup-stat">
+          <span class="popup-label">포화도:</span>
+          <span class="popup-value">${saturation}</span>
+        </div>
+      `;
+
+      marker.bindPopup(popupContent, {
+        className: 'custom-popup'
+      });
+
+      // 클릭 이벤트
+      marker.on('click', () => {
+        showGuInfo(guName, data, color);
+        marker.openPopup();
+      });
+    });
+
+    // 정보 패널 표시 함수
+    function showGuInfo(guName, data, color) {
+      const saturation = getSaturationLevel(data.cafes);
+      const recommendScore = Math.min(100, Math.round(data.rating * 15));
+
+      document.getElementById('guName').textContent = guName;
+      document.getElementById('cafeCount').textContent = data.cafes + '개';
+      document.getElementById('avgRating').textContent = data.rating;
+      document.getElementById('saturationLevel').textContent = saturation;
+      document.getElementById('population').textContent = (data.population / 10000).toFixed(1) + '만명';
+      document.getElementById('recommendScore').textContent = recommendScore + '%';
+
+      const badgeClass = data.cafes >= 31 ? 'saturation-high' : data.cafes >= 11 ? 'saturation-medium' : 'saturation-low';
+      document.getElementById('saturationBadge').innerHTML = `<div class="saturation-badge ${badgeClass}">📊 ${saturation}</div>`;
+
+      document.getElementById('infoPanel').classList.add('active');
+    }
+
+    // 초기 로드 (강남구 선택)
+    setTimeout(() => {
+      showGuInfo('강남구', guData['강남구'], getColor(68));
+      map.setView([37.4979, 127.0276], 12);
+    }, 500);
+  </script>
+</body>
+</html>
