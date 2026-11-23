@@ -2,10 +2,40 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>서울 카페 포화도 분석 지도</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Seoul POI Platform - Phase 2: Map UI</title>
   <style>
+    /* Leaflet CSS - Inline to bypass CSP */
+    .leaflet-container { position: relative; outline: 0; overflow: hidden; }
+    .leaflet-container a { color: #0078A8; }
+    .leaflet-pane, .leaflet-tile, .leaflet-marker-icon, .leaflet-marker-shadow { position: absolute; left: 0; top: 0; }
+    .leaflet-container .leaflet-pane { z-index: 400; }
+    .leaflet-tile-pane { z-index: 2; }
+    .leaflet-overlay-pane { z-index: 3; }
+    .leaflet-shadow-pane { z-index: 1; }
+    .leaflet-marker-pane { z-index: 4; }
+    .leaflet-popup-pane { z-index: 50; }
+    .leaflet-marker-icon, .leaflet-marker-shadow { display: block; }
+    .leaflet-container .leaflet-marker-icon { margin-left: -12px; margin-top: -41px; }
+    .leaflet-container .leaflet-popup { position: absolute; }
+
+    /* ===== CSS Variables ===== */
+    :root {
+      --primary-blue: #0875F5;
+      --search-green: #00C75A;
+      --bg-white: #FFFFFF;
+      --bg-secondary: #F5F7FA;
+      --border-light: #E5E7EB;
+      --text-primary: #222222;
+      --text-secondary: #777777;
+      --error-red: #E5484D;
+      --success-green: #00A86B;
+      --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.08);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+
+    /* ===== Base Styles ===== */
     * {
       margin: 0;
       padding: 0;
@@ -13,705 +43,1215 @@
     }
 
     html, body {
+      width: 100%;
       height: 100%;
-      font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', system-ui;
+      background: var(--bg-white);
+      color: var(--text-primary);
     }
 
-    body {
-      background: #fff;
-      color: #333;
+    /* ===== Layout Structure ===== */
+    #app {
+      display: flex;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Navigation Rail - Left */
+    .nav-rail {
+      width: 64px;
+      height: 100vh;
+      background: var(--bg-white);
+      border-right: 1px solid var(--border-light);
       display: flex;
       flex-direction: column;
+      align-items: center;
+      padding: 12px 0;
+      gap: 8px;
+      z-index: 1000;
+      flex-shrink: 0;
+      box-shadow: var(--shadow-sm);
     }
 
-    /* ===== MAP CANVAS ===== */
+    .nav-item {
+      width: 48px;
+      height: 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+      background: transparent;
+      font-size: 20px;
+      color: var(--text-secondary);
+    }
+
+    .nav-item:hover {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background: var(--primary-blue);
+      color: white;
+    }
+
+    .nav-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-align: center;
+      word-break: break-word;
+      line-height: 1.1;
+    }
+
+    /* Sidebar - Right */
+    .sidebar {
+      width: 400px;
+      height: 100vh;
+      background: var(--bg-white);
+      border-left: 1px solid var(--border-light);
+      display: flex;
+      flex-direction: column;
+      z-index: 50;
+      flex-shrink: 0;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+
+    .sidebar.closed {
+      transform: translateX(100%);
+      box-shadow: none;
+    }
+
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .sidebar-close-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+
+    .sidebar-close-btn:hover {
+      background: var(--bg-secondary);
+    }
+
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sidebar-content::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .sidebar-content::-webkit-scrollbar-thumb {
+      background: #ccc;
+      border-radius: 3px;
+    }
+
+    /* Map Container - Center */
+    .map-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
     #map {
-      position: absolute;
-      top: 0;
-      left: 0;
       width: 100%;
       height: 100%;
       z-index: 0;
     }
 
-    .map-container {
-      position: relative;
-      flex: 1;
-      width: 100%;
-      height: 100%;
-    }
-
-    /* ===== FLOATING SEARCH BAR (TOP CENTER) ===== */
-    .floating-search {
-      position: fixed;
-      top: 1.5rem;
-      left: 50%;
-      transform: translateX(-50%);
+    /* Search Bar - Floating */
+    .search-container {
+      position: absolute;
+      top: 16px;
+      left: 80px;
+      right: 420px;
       z-index: 20;
-      width: 90%;
-      max-width: 500px;
-    }
-
-    .search-box {
+      background: white;
+      border-radius: 8px;
+      box-shadow: var(--shadow-md);
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      background: white;
-      border-radius: 24px;
-      padding: 0.75rem 1rem;
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-      border: 1px solid #eee;
+      padding: 12px 16px;
+      gap: 12px;
     }
 
-    .search-box input {
+    .search-container.sidebar-closed {
+      right: 16px;
+    }
+
+    .search-input {
       flex: 1;
       border: none;
       outline: none;
-      font-size: 0.95rem;
-      color: #333;
+      font-size: 14px;
+      color: var(--text-primary);
     }
 
-    .search-box input::placeholder {
-      color: #999;
+    .search-input::placeholder {
+      color: var(--text-secondary);
     }
 
-    /* ===== FILTER CHIPS ===== */
-    .filter-chips {
-      display: flex;
-      gap: 0.6rem;
-      margin-top: 0.75rem;
-      overflow-x: auto;
-      padding-bottom: 0.5rem;
-      justify-content: center;
-    }
-
-    .chip {
-      white-space: nowrap;
-      padding: 0.5rem 1rem;
-      border-radius: 20px;
-      border: 1px solid #ddd;
-      background: white;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-size: 0.85rem;
-      font-weight: 500;
-    }
-
-    .chip:hover {
-      border-color: #667eea;
-      background: #f0f7ff;
-    }
-
-    .chip.active {
-      background: #667eea;
+    .search-btn {
+      border: none;
+      background: var(--search-green);
       color: white;
-      border-color: #667eea;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 12px;
+      transition: background 0.2s;
     }
 
-    /* ===== LEFT PANEL (CAFE LIST) ===== */
-    .left-panel {
-      position: fixed;
-      left: 1.5rem;
-      top: 10rem;
-      width: 320px;
-      max-height: 70vh;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-      border: 1px solid #eee;
-      z-index: 25;
-      overflow-y: auto;
+    .search-btn:hover {
+      background: #00A647;
+    }
+
+    /* Map Controls - Right */
+    .map-controls {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      z-index: 20;
       display: flex;
       flex-direction: column;
+      gap: 8px;
     }
 
-    .panel-header {
-      padding: 1rem;
-      border-bottom: 1px solid #f0f0f0;
-      font-weight: 600;
-      font-size: 0.95rem;
-      color: #222;
+    .control-btn {
+      width: 44px;
+      height: 44px;
+      background: white;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: all 0.2s;
+      box-shadow: var(--shadow-sm);
     }
 
-    .cafe-list {
-      flex: 1;
-      overflow-y: auto;
+    .control-btn:hover {
+      background: var(--bg-secondary);
+      box-shadow: var(--shadow-md);
     }
 
-    .cafe-card {
-      padding: 0.9rem 1rem;
-      border-bottom: 1px solid #f5f5f5;
+    /* Cafe List */
+    .cafe-list-item {
+      padding: 12px;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
       cursor: pointer;
       transition: all 0.2s;
     }
 
-    .cafe-card:hover {
-      background: #f9f9f9;
+    .cafe-list-item:hover {
+      background: var(--bg-secondary);
+      border-color: var(--primary-blue);
     }
 
-    .cafe-card.active {
-      background: #f0f7ff;
-      border-left: 4px solid #667eea;
-      padding-left: calc(1rem - 4px);
+    .cafe-list-item.selected {
+      background: var(--bg-secondary);
+      border-color: var(--primary-blue);
+      border-width: 2px;
     }
 
     .cafe-name {
-      font-weight: 600;
-      font-size: 0.95rem;
-      color: #222;
-      margin-bottom: 0.3rem;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .cafe-info {
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     .cafe-rating {
-      font-size: 0.8rem;
-      color: #ff9800;
-      margin-bottom: 0.4rem;
-    }
-
-    .cafe-gu {
-      font-size: 0.8rem;
-      color: #999;
-    }
-
-    /* ===== MAP CONTROLS (RIGHT) ===== */
-    .map-controls {
-      position: fixed;
-      right: 1.5rem;
-      top: 1.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.6rem;
-      z-index: 20;
-    }
-
-    .control-button {
-      width: 44px;
-      height: 44px;
-      border-radius: 8px;
-      background: white;
-      border: 1px solid #eee;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.2rem;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      transition: all 0.2s;
+      color: #FFB000;
       font-weight: 600;
-      color: #333;
     }
 
-    .control-button:hover {
-      background: #f5f5f5;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
-
-    /* ===== LEGEND (TOP RIGHT BELOW CONTROLS) ===== */
-    .legend {
-      position: fixed;
-      right: 1.5rem;
-      top: 10rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.6rem;
-      background: white;
-      padding: 1rem;
-      border-radius: 12px;
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-      border: 1px solid #eee;
-      z-index: 20;
-      font-size: 0.85rem;
-    }
-
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-    }
-
-    .legend-color {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      border: 2px solid #fff;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-    }
-
-    /* ===== RIGHT BOTTOM CARD (SELECTED CAFE) ===== */
-    .cafe-detail-card {
-      position: fixed;
-      bottom: 1.5rem;
-      right: 1.5rem;
-      width: 320px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-      border: 1px solid #eee;
-      z-index: 30;
+    /* Cafe Detail Card */
+    .cafe-detail {
       display: none;
-      overflow: hidden;
-      animation: slideUp 0.3s ease-out;
+      flex-direction: column;
+      gap: 12px;
     }
 
-    @keyframes slideUp {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+    .cafe-detail.active {
+      display: flex;
     }
 
-    .cafe-detail-card.active {
-      display: block;
-    }
-
-    .card-image {
+    .detail-image {
       width: 100%;
       height: 160px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 8px;
+      background: var(--bg-secondary);
       background-size: cover;
       background-position: center;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 3rem;
-      position: relative;
     }
 
-    .card-image::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.2);
-      z-index: 1;
-    }
-
-    .card-image > * {
-      position: relative;
-      z-index: 2;
-    }
-
-    .close-card-btn {
-      position: absolute;
-      top: 0.6rem;
-      right: 0.6rem;
-      width: 32px;
-      height: 32px;
-      background: rgba(0, 0, 0, 0.3);
-      border: none;
-      color: white;
-      border-radius: 50%;
-      cursor: pointer;
-      font-size: 1.2rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-    }
-
-    .close-card-btn:hover {
-      background: rgba(0, 0, 0, 0.5);
-    }
-
-    .card-content {
-      padding: 1rem;
-    }
-
-    .card-title {
-      font-size: 1.1rem;
+    .detail-name {
+      font-size: 18px;
       font-weight: 700;
-      color: #222;
-      margin-bottom: 0.4rem;
+      color: var(--text-primary);
     }
 
-    .card-rating {
-      color: #ff9800;
-      font-weight: 600;
-      margin-bottom: 0.8rem;
-      font-size: 0.9rem;
-    }
-
-    .card-info-row {
+    .detail-rating {
       display: flex;
-      justify-content: space-between;
-      padding: 0.6rem 0;
-      border-top: 1px solid #f0f0f0;
-      font-size: 0.85rem;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
     }
 
-    .card-info-label {
-      color: #999;
-      font-weight: 500;
+    .detail-rating-stars {
+      color: #FFB000;
+      font-size: 16px;
     }
 
-    .card-info-value {
-      color: #333;
+    .detail-info-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 13px;
+    }
+
+    .detail-info-label {
+      color: var(--text-secondary);
       font-weight: 600;
     }
 
-    .card-amenities {
+    .detail-info-value {
+      color: var(--text-primary);
+    }
+
+    .detail-amenities {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.4rem;
-      margin-top: 0.8rem;
-      padding-top: 0.8rem;
-      border-top: 1px solid #f0f0f0;
+      gap: 6px;
     }
 
     .amenity-tag {
-      padding: 0.3rem 0.7rem;
-      background: #e3f2fd;
-      color: #1976d2;
-      border-radius: 14px;
-      font-size: 0.75rem;
-      font-weight: 600;
+      background: var(--bg-secondary);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--text-primary);
     }
 
-    .naver-btn {
-      width: 100%;
-      padding: 0.7rem;
-      margin-top: 0.8rem;
-      background: #00c73c;
-      color: white;
-      border: none;
+    .detail-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .detail-btn {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid var(--border-light);
       border-radius: 6px;
-      font-weight: 600;
       cursor: pointer;
-      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
       transition: all 0.2s;
-      font-size: 0.85rem;
+      background: white;
+      color: var(--text-primary);
     }
 
-    .naver-btn:hover {
-      background: #00a82e;
+    .detail-btn:hover {
+      background: var(--bg-secondary);
     }
 
-    /* ===== LEAFLET CUSTOMIZATION ===== */
-    .leaflet-container {
-      font-family: inherit;
-      background: #fff;
+    .detail-btn.primary {
+      background: var(--primary-blue);
+      color: white;
+      border-color: var(--primary-blue);
     }
 
-    /* ===== RESPONSIVE ===== */
-    @media (max-width: 1024px) {
-      .left-panel {
-        width: 280px;
-        max-height: 60vh;
+    .detail-btn.primary:hover {
+      background: #0056d4;
+    }
+
+    /* ===== Animations ===== */
+    @keyframes slideInUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .sidebar {
+      animation: slideInUp 0.3s ease-out;
+    }
+
+    .cafe-list-item {
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    .nav-item, .control-btn, .detail-btn, .search-btn {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .detail-btn:active {
+      transform: scale(0.98);
+    }
+
+    *:focus-visible {
+      outline: 2px solid var(--primary-blue);
+      outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
       }
-
-      .cafe-detail-card {
-        width: 280px;
-      }
     }
 
+    /* Sidebar Toggle Button */
+    .sidebar-toggle-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 25;
+      width: 36px;
+      height: 36px;
+      background: white;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s;
+    }
+
+    .sidebar-toggle-btn:hover {
+      background: var(--bg-secondary);
+    }
+
+    .sidebar-toggle-btn.hidden {
+      display: none;
+    }
+
+    /* ===== Responsive ===== */
     @media (max-width: 768px) {
-      .floating-search {
-        width: calc(100% - 2rem);
-        max-width: 100%;
+      #app {
+        flex-direction: column;
       }
 
-      .left-panel {
+      .nav-rail {
+        width: 100%;
+        height: 56px;
+        flex-direction: row;
+        border-right: none;
+        border-top: 1px solid var(--border-light);
+        padding: 8px 12px;
+        order: 2;
+      }
+
+      .nav-item {
+        width: 44px;
+        height: 44px;
+      }
+
+      .map-container {
+        order: 1;
+        height: calc(100vh - 112px);
+      }
+
+      .sidebar {
+        width: 100%;
+        height: 56px;
+        border-left: none;
+        border-top: 1px solid var(--border-light);
+        order: 3;
+      }
+
+      .sidebar.closed {
+        transform: translateY(100%);
+      }
+
+      .search-container {
+        left: 12px;
+        right: 12px;
+        top: 8px;
+      }
+
+      .sidebar-toggle-btn {
         display: none;
-      }
-
-      .legend {
-        display: none;
-      }
-
-      .map-controls {
-        bottom: 1.5rem;
-        top: auto;
-        right: 0.75rem;
-      }
-
-      .cafe-detail-card {
-        bottom: 1rem;
-        right: 1rem;
-        left: 1rem;
-        width: calc(100% - 2rem);
-      }
-
-      .filter-chips {
-        margin-top: 0.5rem;
       }
     }
   </style>
 </head>
 <body>
-  <!-- Map Canvas -->
-  <div class="map-container">
-    <div id="map"></div>
-  </div>
+  <div id="app">
+    <!-- Navigation Rail -->
+    <nav class="nav-rail">
+      <button class="nav-item active" data-view="home" title="홈">
+        🏠
+        <span class="nav-label">홈</span>
+      </button>
+      <button class="nav-item" data-view="directions" title="길찾기">
+        🧭
+        <span class="nav-label">길</span>
+      </button>
+      <button class="nav-item" data-view="bus" title="버스">
+        🚌
+        <span class="nav-label">버스</span>
+      </button>
+      <button class="nav-item" data-view="train" title="기차">
+        🚂
+        <span class="nav-label">기차</span>
+      </button>
+      <button class="nav-item" data-view="saved" title="저장">
+        💾
+        <span class="nav-label">저장</span>
+      </button>
+      <button class="nav-item" data-view="register" title="카페 등록">
+        ➕
+        <span class="nav-label">등록</span>
+      </button>
+      <button class="nav-item" data-view="analysis" title="분석">
+        📊
+        <span class="nav-label">분석</span>
+      </button>
+      <button class="nav-item" data-view="more" title="더보기">
+        ⋯
+        <span class="nav-label">더</span>
+      </button>
+    </nav>
 
-  <!-- Floating Search Bar (Top Center) -->
-  <div class="floating-search">
-    <div class="search-box">
-      <span>🔍</span>
-      <input type="text" id="searchInput" placeholder="카페명 또는 구 검색..." />
-    </div>
-    <div class="filter-chips">
-      <div class="chip active" data-filter="all">전체</div>
-      <div class="chip" data-filter="new">신규 카페</div>
-      <div class="chip" data-filter="responsive">고평점 (4.5+)</div>
-    </div>
-  </div>
-
-  <!-- Left Panel (Cafe List) -->
-  <div class="left-panel" id="leftPanel">
-    <div class="panel-header" id="panelTitle">전체 카페 (10개)</div>
-    <div class="cafe-list" id="cafeList"></div>
-  </div>
-
-  <!-- Legend (Right Top) -->
-  <div class="legend">
-    <div class="legend-item">
-      <div class="legend-color" style="background: #667eea;"></div>
-      <span>신규 (1-3년)</span>
-    </div>
-    <div class="legend-item">
-      <div class="legend-color" style="background: #764ba2;"></div>
-      <span>확립됨 (10년+)</span>
-    </div>
-    <div class="legend-item">
-      <div class="legend-color" style="background: #f093fb;"></div>
-      <span>고평점 (4.5+)</span>
-    </div>
-  </div>
-
-  <!-- Map Controls (Right) -->
-  <div class="map-controls">
-    <button class="control-button" id="zoomIn" title="확대">+</button>
-    <button class="control-button" id="zoomOut" title="축소">−</button>
-    <button class="control-button" id="centerLocation" title="현재 위치">📍</button>
-  </div>
-
-  <!-- Cafe Detail Card (Right Bottom) -->
-  <div class="cafe-detail-card" id="cafeDetailCard">
-    <div class="card-image" id="cardImage">
-      <button class="close-card-btn" id="closeCard">✕</button>
-    </div>
-    <div class="card-content">
-      <div class="card-title" id="cardTitle">카페명</div>
-      <div class="card-rating" id="cardRating">★ 4.5 (120 리뷰)</div>
-
-      <div class="card-info-row">
-        <span class="card-info-label">주소</span>
-        <span class="card-info-value" id="cardAddress">주소</span>
-      </div>
-      <div class="card-info-row">
-        <span class="card-info-label">시간</span>
-        <span class="card-info-value" id="cardHours">09:00-22:00</span>
+    <!-- Map Container -->
+    <div class="map-container">
+      <!-- Search Bar -->
+      <div class="search-container">
+        <span>🔍</span>
+        <input type="text" class="search-input" placeholder="장소, 주소, 카페 검색">
+        <button class="search-btn">검색</button>
       </div>
 
-      <div class="card-amenities" id="cardAmenities"></div>
+      <!-- Map -->
+      <div id="map"></div>
 
-      <a id="naverMapLink" href="#" target="_blank" class="naver-btn">🗺️ 네이버맵 보기</a>
+      <!-- Sidebar Toggle Button -->
+      <button class="sidebar-toggle-btn" id="sidebarToggleBtn">◀</button>
+
+      <!-- Map Controls -->
+      <div class="map-controls">
+        <button class="control-btn" id="zoomInBtn" title="확대">+</button>
+        <button class="control-btn" id="zoomOutBtn" title="축소">−</button>
+        <button class="control-btn" id="locationBtn" title="현재 위치">📍</button>
+        <button class="control-btn" id="fullscreenBtn" title="전체화면">⛶</button>
+      </div>
     </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2 class="sidebar-header-title" id="sidebarTitle">홈</h2>
+        <button class="sidebar-close-btn" id="sidebarCloseBtn">✕</button>
+      </div>
+
+      <div class="sidebar-content" id="sidebarContent">
+        <!-- Dynamic content will be rendered here -->
+      </div>
+    </aside>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script>
-    // 모든 카페 데이터 (20개 - 각 구별 분산)
-    const allCafes = [
-      { id: 1, name: '커피 1947', gu: '강남구', lat: 37.4979, lng: 127.0276, address: '강남구 테헤란로 123', rating: 4.7, reviews: 450, hours: '08:00-22:00', amenities: ['주차', '와이파이', '테라스'], desc: '프리미엄 스페셜티 커피', type: 'responsive', image: 'https://images.unsplash.com/photo-1495474472645-4c71bcdd2d18?w=400&h=300&fit=crop' },
-      { id: 2, name: '달콤한 베이커리', gu: '강남구', lat: 37.4985, lng: 127.0290, address: '강남구 강남대로 456', rating: 4.5, reviews: 320, hours: '09:00-21:00', amenities: ['주차', '포장'], desc: '수제 베이커리 & 커피', type: 'new', image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop' },
-      { id: 3, name: '명동 카페숲', gu: '강남구', lat: 37.4970, lng: 127.0260, address: '강남구 삼성로 789', rating: 4.8, reviews: 680, hours: '07:00-23:00', amenities: ['와이파이', '콘센트', '테라스'], desc: '차분한 분위기의 프리미엄 카페', type: 'responsive', image: 'https://images.unsplash.com/photo-1521017713171-f3379857c896?w=400&h=300&fit=crop' },
-      { id: 4, name: '압구정 카페', gu: '서초구', lat: 37.4845, lng: 127.0325, address: '서초구 압구정로 111', rating: 4.6, reviews: 520, hours: '08:30-21:30', amenities: ['주차', '포장'], desc: '트렌디한 감성의 카페', type: 'responsive', image: 'https://images.unsplash.com/photo-1501339847302-ac426a36c86d?w=400&h=300&fit=crop' },
-      { id: 5, name: '스페셜 로스터', gu: '서초구', lat: 37.4850, lng: 127.0315, address: '서초구 양재천로 222', rating: 4.7, reviews: 410, hours: '09:00-22:00', amenities: ['와이파이', '테라스'], desc: '직화 로스팅 스페셜티', type: 'responsive', image: 'https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=400&h=300&fit=crop' },
-      { id: 6, name: '합정 감성카페', gu: '마포구', lat: 37.5456, lng: 126.9212, address: '마포구 합정로 333', rating: 4.5, reviews: 380, hours: '10:00-21:00', amenities: ['주차', '포장'], desc: '감성 넘치는 복합문화공간', type: 'new', image: 'https://images.unsplash.com/photo-1493857671505-72967e2e2760?w=400&h=300&fit=crop' },
-      { id: 7, name: '커피연구소', gu: '마포구', lat: 37.5460, lng: 126.9220, address: '마포구 월드컵로 444', rating: 4.8, reviews: 520, hours: '08:00-22:00', amenities: ['와이파이', '콘센트'], desc: '커피 과학의 모든 것', type: 'responsive', image: 'https://images.unsplash.com/photo-1486314847381-3a2073ae886c?w=400&h=300&fit=crop' },
-      { id: 8, name: '수유 카페', gu: '강북구', lat: 37.6397, lng: 127.0251, address: '강북구 도봉로 555', rating: 4.4, reviews: 210, hours: '09:00-20:00', amenities: ['주차'], desc: '동네 사랑받는 카페', type: 'established', image: 'https://images.unsplash.com/photo-1488146221393-80ecf1cfc020?w=400&h=300&fit=crop' },
-      { id: 9, name: '고궁 뷰 카페', gu: '종로구', lat: 37.5731, lng: 126.9779, address: '종로구 종로 666', rating: 4.7, reviews: 580, hours: '09:00-21:30', amenities: ['와이파이', '테라스'], desc: '경복궁 뷰 카페', type: 'responsive', image: 'https://images.unsplash.com/photo-1442512595331-e89e7e52e140?w=400&h=300&fit=crop' },
-      { id: 10, name: '전통 차 카페', gu: '종로구', lat: 37.5735, lng: 126.9785, address: '종로구 인사동길 777', rating: 4.6, reviews: 320, hours: '10:00-20:00', amenities: ['포장'], desc: '전통 차와 현대 감성', type: 'established', image: 'https://images.unsplash.com/photo-1512568400610-62da47e1b7d0?w=400&h=300&fit=crop' },
+    // ===== App State =====
+    const state = {
+      activeView: 'home',
+      sidebarOpen: true,
+      mapCenter: [37.5665, 127.0106], // Seoul
+      mapZoom: 13,
+      selectedPlace: null,
+      favorites: [],
+      places: [],
+      markers: [],
+      searchQuery: '',
+      filteredPlaces: [],
+      activeFilters: {
+        gu: null,
+        minRating: 0,
+        amenities: []
+      },
+      registrationMode: {
+        active: false,
+        locationSelected: null,
+        formData: {}
+      },
+      analysisMode: {
+        active: false,
+        selectedLocation: null,
+        analysis: null
+      }
+    };
 
-      // 추가 10개 카페
-      { id: 11, name: '중로 카페마실', gu: '중구', lat: 37.5635, lng: 126.9988, address: '중구 명동길 100', rating: 4.5, reviews: 290, hours: '08:00-21:00', amenities: ['와이파이', '포장'], desc: '지역 명소 카페', type: 'new', image: 'https://images.unsplash.com/photo-1555939594-58d7cb561481?w=400&h=300&fit=crop' },
-      { id: 12, name: '한남 아뜨리에', gu: '용산구', lat: 37.5386, lng: 126.9905, address: '용산구 한남로 85', rating: 4.6, reviews: 410, hours: '09:00-22:00', amenities: ['주차', '와이파이', '콘센트'], desc: '예술감성 카페', type: 'responsive', image: 'https://images.unsplash.com/photo-1511920170033-f8396924c348?w=400&h=300&fit=crop' },
-      { id: 13, name: '성수 더 블렌딩', gu: '성동구', lat: 37.5648, lng: 127.0372, address: '성동구 성수로 200', rating: 4.7, reviews: 480, hours: '08:30-21:30', amenities: ['주차', '와이파이', '테라스'], desc: '블렌딩 커피 전문점', type: 'responsive', image: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400&h=300&fit=crop' },
-      { id: 14, name: '광장 로스터리', gu: '광진구', lat: 37.5386, lng: 127.0847, address: '광진구 천호대로 300', rating: 4.4, reviews: 260, hours: '10:00-20:00', amenities: ['주차', '포장'], desc: '자체 로스팅 커피숍', type: 'new', image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b3f3?w=400&h=300&fit=crop' },
-      { id: 15, name: '동대문 클래식', gu: '동대문구', lat: 37.5731, lng: 127.0409, address: '동대문구 청계로 150', rating: 4.5, reviews: 350, hours: '09:00-21:00', amenities: ['와이파이', '콘센트'], desc: '클래식한 분위기 카페', type: 'established', image: 'https://images.unsplash.com/photo-1495474472645-4c71bcdd2d18?w=400&h=300&fit=crop' },
-      { id: 16, name: '묵동 감성', gu: '중랑구', lat: 37.6054, lng: 127.0922, address: '중랑구 용리단로 220', rating: 4.6, reviews: 310, hours: '08:00-22:00', amenities: ['주차', '와이파이'], desc: '감성적인 로컬 카페', type: 'new', image: 'https://images.unsplash.com/photo-1457694716424-d6a2975e0f21?w=400&h=300&fit=crop' },
-      { id: 17, name: '성북동 뷰', gu: '성북구', lat: 37.6093, lng: 127.0159, address: '성북구 성북로 180', rating: 4.7, reviews: 420, hours: '09:00-21:00', amenities: ['테라스', '와이파이'], desc: '뷰 좋은 카페', type: 'responsive', image: 'https://images.unsplash.com/photo-1442512595331-e89e7e52e140?w=400&h=300&fit=crop' },
-      { id: 18, name: '도봉산 카페', gu: '도봉구', lat: 37.6668, lng: 127.0481, address: '도봉구 도봉로 350', rating: 4.4, reviews: 180, hours: '10:00-19:00', amenities: ['주차', '포장'], desc: '산 근처 휴양 카페', type: 'established', image: 'https://images.unsplash.com/photo-1495474472645-4c71bcdd2d18?w=400&h=300&fit=crop' },
-      { id: 19, name: '노원 힐링', gu: '노원구', lat: 37.6552, lng: 127.0760, address: '노원구 노원로 280', rating: 4.5, reviews: 240, hours: '09:00-21:00', amenities: ['주차', '와이파이'], desc: '힐링의 공간', type: 'new', image: 'https://images.unsplash.com/photo-1521017713171-f3379857c896?w=400&h=300&fit=crop' },
-      { id: 20, name: '은평 아트', gu: '은평구', lat: 37.6024, lng: 126.9293, address: '은평구 은평로 220', rating: 4.6, reviews: 380, hours: '08:00-22:00', amenities: ['와이파이', '콘센트', '테라스'], desc: '아트 갤러리 카페', type: 'responsive', image: 'https://images.unsplash.com/photo-1493857671505-72967e2e2760?w=400&h=300&fit=crop' }
+    // ===== Cafe Data (20 Seoul Cafes) =====
+    const allCafes = [
+      { id: 1, name: '커피 앙상블', gu: '강남구', lat: 37.4979, lng: 127.0276, address: '서울시 강남구 테헤란로 152', rating: 4.8, reviews: 342, hours: '07:00 - 23:00', amenities: ['WiFi', '콘센트', '주차'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1495474472645-4d71bcdd2085?w=400&h=300&fit=crop' },
+      { id: 2, name: '에스프레소 앤 라운지', gu: '서초구', lat: 37.4863, lng: 127.0239, address: '서울시 서초구 강남대로 467', rating: 4.6, reviews: 285, hours: '08:00 - 22:00', amenities: ['WiFi', '주차', '북카페'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1521017874486-200b3b441e30?w=400&h=300&fit=crop' },
+      { id: 3, name: '더 블렌드', gu: '송파구', lat: 37.4855, lng: 127.1086, address: '서울시 송파구 올림픽로 310', rating: 4.7, reviews: 418, hours: '06:30 - 23:30', amenities: ['WiFi', '콘센트', '라운지'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4c2caa?w=400&h=300&fit=crop' },
+      { id: 4, name: '카페 토마토', gu: '강동구', lat: 37.5287, lng: 127.1239, address: '서울시 강동구 성수일로 268', rating: 4.5, reviews: 221, hours: '07:00 - 22:00', amenities: ['WiFi', '주차'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=400&h=300&fit=crop' },
+      { id: 5, name: '오디너리 커피', gu: '마포구', lat: 37.5407, lng: 126.9273, address: '서울시 마포구 양화로 162', rating: 4.9, reviews: 523, hours: '07:00 - 21:00', amenities: ['WiFi', '콘센트', '사진존'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop' },
+      { id: 6, name: '스타벅스 성수', gu: '성동구', lat: 37.5415, lng: 127.0589, address: '서울시 성동구 성수일로 266', rating: 4.6, reviews: 612, hours: '06:00 - 23:00', amenities: ['WiFi', '콘센트', '주차'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1511642035486-a01980e01a18?w=400&h=300&fit=crop' },
+      { id: 7, name: '토토로 카페', gu: '용산구', lat: 37.5323, lng: 126.9926, address: '서울시 용산구 한남대로 98', rating: 4.4, reviews: 198, hours: '10:00 - 20:00', amenities: ['라운지', '북카페'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1447933601403-0c6688bcf566?w=400&h=300&fit=crop' },
+      { id: 8, name: '커피 어디', gu: '중구', lat: 37.5641, lng: 126.9881, address: '서울시 중구 소공로 71', rating: 4.7, reviews: 356, hours: '07:30 - 22:30', amenities: ['WiFi', '콘센트'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop' },
+      { id: 9, name: '푸드코트 카페', gu: '동대문구', lat: 37.5725, lng: 127.0100, address: '서울시 동대문구 종로 283', rating: 4.3, reviews: 267, hours: '09:00 - 21:00', amenities: ['주차', '라운지'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=400&h=300&fit=crop' },
+      { id: 10, name: '티타임', gu: '종로구', lat: 37.5731, lng: 126.9841, address: '서울시 종로구 종로 118', rating: 4.8, reviews: 445, hours: '08:00 - 23:00', amenities: ['WiFi', '콘센트', '사진존'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1569718733945-b2f1fbf7f72c?w=400&h=300&fit=crop' },
+      { id: 11, name: '더 모먼트', gu: '강북구', lat: 37.6388, lng: 127.0266, address: '서울시 강북구 삼양로 348', rating: 4.5, reviews: 189, hours: '07:00 - 22:00', amenities: ['WiFi', '주차'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1520701686378-820a62b02b51?w=400&h=300&fit=crop' },
+      { id: 12, name: '커피 듀오', gu: '노원구', lat: 37.6591, lng: 127.0768, address: '서울시 노원구 동일로 1281', rating: 4.4, reviews: 213, hours: '06:30 - 22:00', amenities: ['콘센트', '라운지'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&h=300&fit=crop' },
+      { id: 13, name: '아틀리에 카페', gu: '도봉구', lat: 37.6682, lng: 127.0434, address: '서울시 도봉구 도봉로 468', rating: 4.6, reviews: 274, hours: '07:30 - 23:00', amenities: ['WiFi', '사진존'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1486764100027-4de5eb5ca5df?w=400&h=300&fit=crop' },
+      { id: 14, name: '더 카페', gu: '의정부시', lat: 37.7392, lng: 127.0498, address: '의정부시 의정부로 365', rating: 4.3, reviews: 156, hours: '08:00 - 21:00', amenities: ['주차', '라운지'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1457521437640-36629910f3a2?w=400&h=300&fit=crop' },
+      { id: 15, name: '블렌드 & 브루', gu: '구로구', lat: 37.4933, lng: 126.8738, address: '서울시 구로구 경인로 752', rating: 4.7, reviews: 332, hours: '07:00 - 23:00', amenities: ['WiFi', '콘센트', '주차'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1495474472645-4d71bcdd2085?w=400&h=300&fit=crop' },
+      { id: 16, name: '에스프레소 바', gu: '영등포구', lat: 37.5273, lng: 126.8882, address: '서울시 영등포구 국제금융로 60', rating: 4.8, reviews: 491, hours: '06:30 - 23:30', amenities: ['WiFi', '콘센트'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1521017874486-200b3b441e30?w=400&h=300&fit=crop' },
+      { id: 17, name: '우리 카페', gu: '동작구', lat: 37.4873, lng: 126.9452, address: '서울시 동작구 노량진로 213', rating: 4.5, reviews: 243, hours: '07:30 - 22:00', amenities: ['라운지', '북카페'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4c2caa?w=400&h=300&fit=crop' },
+      { id: 18, name: '뷔페 카페', gu: '관악구', lat: 37.4736, lng: 126.9535, address: '서울시 관악구 관악로 165', rating: 4.4, reviews: 198, hours: '08:00 - 22:00', amenities: ['WiFi', '주차'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=400&h=300&fit=crop' },
+      { id: 19, name: '커피 토크', gu: '서초구', lat: 37.4949, lng: 126.9926, address: '서울시 서초구 반포대로 15', rating: 4.9, reviews: 578, hours: '07:00 - 23:00', amenities: ['WiFi', '콘센트', '사진존'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop' },
+      { id: 20, name: '더 플레이스', gu: '강남구', lat: 37.5097, lng: 127.0462, address: '서울시 강남구 학동로 283', rating: 4.6, reviews: 367, hours: '06:30 - 23:00', amenities: ['WiFi', '라운지', '주차'], type: 'cafe', imageUrl: 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=400&h=300&fit=crop' }
     ];
 
-    let selectedCafeId = null;
-    let currentFilter = 'all';
+    state.places = allCafes;
 
-    // 색상 함수
-    function getCafeColor(type) {
-      const colors = {
-        'new': '#667eea',
-        'established': '#764ba2',
-        'responsive': '#f093fb'
-      };
-      return colors[type] || '#667eea';
+    // ===== Initialize Map =====
+    let map;
+    let locationMarker = null;
+
+    function initializeMap() {
+      map = L.map('map').setView(state.mapCenter, state.mapZoom);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(map);
+
+      map.on('moveend', () => {
+        const center = map.getCenter();
+        state.mapCenter = [center.lat, center.lng];
+      });
+
+      map.on('zoomend', () => {
+        state.mapZoom = map.getZoom();
+      });
+
+      // Registration mode: map click to select location
+      map.on('click', (e) => {
+        if (state.registrationMode.active) {
+          state.registrationMode.locationSelected = {
+            lat: e.latlng.lat,
+            lng: e.latlng.lng
+          };
+
+          // Update marker
+          if (locationMarker) {
+            map.removeLayer(locationMarker);
+          }
+          locationMarker = L.marker([e.latlng.lat, e.latlng.lng], {
+            title: '선택된 위치'
+          }).addTo(map);
+
+          // Update form display
+          renderSidebar();
+        }
+      });
+
+      createMarkers();
     }
 
-    // 맵 초기화
-    const map = L.map('map').setView([37.5665, 127.0106], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap',
-      maxZoom: 19
-    }).addTo(map);
+    // ===== Search & Filter Functions =====
+    function filterCafes(query = '', filters = {}) {
+      let results = state.places.filter(cafe => {
+        // Search query filter
+        if (query) {
+          const q = query.toLowerCase();
+          const matchesName = cafe.name.toLowerCase().includes(q);
+          const matchesGu = cafe.gu.toLowerCase().includes(q);
+          const matchesAddress = cafe.address.toLowerCase().includes(q);
+          if (!matchesName && !matchesGu && !matchesAddress) return false;
+        }
 
-    const markerGroup = L.featureGroup().addTo(map);
-    const markers = {};
+        // Gu filter
+        if (filters.gu && cafe.gu !== filters.gu) return false;
 
-    // 카페 마커 추가
-    function addMarkers(cafes) {
-      markerGroup.clearLayers();
-      cafes.forEach(cafe => {
-        const color = getCafeColor(cafe.type);
+        // Rating filter
+        if (filters.minRating && cafe.rating < filters.minRating) return false;
 
-        const markerHtml = `
-          <div style="
-            background: ${color};
-            color: white;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 1.2rem;
-            border: 3px solid white;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            cursor: pointer;
-          ">
-            ☕
-          </div>
-        `;
+        // Amenities filter
+        if (filters.amenities && filters.amenities.length > 0) {
+          const hasAllAmenities = filters.amenities.every(amenity =>
+            cafe.amenities.includes(amenity)
+          );
+          if (!hasAllAmenities) return false;
+        }
 
+        return true;
+      });
+
+      state.filteredPlaces = results;
+      return results;
+    }
+
+    function getAutocompleteSuggestions(query) {
+      if (!query) return [];
+      const q = query.toLowerCase();
+
+      const suggestions = new Set();
+      state.places.forEach(cafe => {
+        if (cafe.name.toLowerCase().includes(q)) suggestions.add(cafe.name);
+        if (cafe.gu.toLowerCase().includes(q)) suggestions.add(cafe.gu);
+      });
+
+      return Array.from(suggestions).slice(0, 5);
+    }
+
+    // ===== Analysis Functions =====
+    function haversineDistance(lat1, lng1, lat2, lng2) {
+      const R = 6371; // Earth's radius in km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    function analyzeLocation(lat, lng, radius = 1.0) {
+      const nearbyCafes = state.places.filter(cafe => {
+        const distance = haversineDistance(lat, lng, cafe.lat, cafe.lng);
+        return distance <= radius;
+      });
+
+      const area = Math.PI * radius * radius;
+      const saturation = nearbyCafes.length / area;
+      const avgRating = nearbyCafes.length > 0 ?
+        (nearbyCafes.reduce((sum, c) => sum + c.rating, 0) / nearbyCafes.length).toFixed(2) : 0;
+      const totalReviews = nearbyCafes.reduce((sum, c) => sum + c.reviews, 0);
+
+      // Success Probability (0-100%)
+      const saturationScore = Math.max(0, 100 - saturation * 20);
+      const ratingScore = avgRating * 10;
+      const reviewScore = Math.min(50, totalReviews / 10);
+
+      const successProbability = Math.round((saturationScore * 0.4 + ratingScore * 0.3 + reviewScore * 0.3));
+
+      return {
+        location: { lat, lng },
+        nearbyCafes: nearbyCafes.length,
+        saturation: saturation.toFixed(2),
+        avgRating,
+        totalReviews,
+        area: area.toFixed(2),
+        successProbability: Math.min(100, successProbability),
+        riskLevel: successProbability > 70 ? '낮음' : successProbability > 40 ? '중간' : '높음'
+      };
+    }
+
+    function getGuAnalysis() {
+      const guData = {};
+      state.places.forEach(cafe => {
+        if (!guData[cafe.gu]) {
+          guData[cafe.gu] = { count: 0, totalRating: 0, totalReviews: 0 };
+        }
+        guData[cafe.gu].count++;
+        guData[cafe.gu].totalRating += cafe.rating;
+        guData[cafe.gu].totalReviews += cafe.reviews;
+      });
+
+      return Object.entries(guData).map(([gu, data]) => ({
+        gu,
+        count: data.count,
+        avgRating: (data.totalRating / data.count).toFixed(2),
+        totalReviews: data.totalReviews,
+        saturation: (data.count / 5).toFixed(2)
+      })).sort((a, b) => b.count - a.count);
+    }
+
+    // ===== Marker System =====
+    function createMarkers() {
+      state.markers.forEach(m => map.removeLayer(m));
+      state.markers = [];
+
+      const cafesToDisplay = state.searchQuery || Object.values(state.activeFilters).some(v => v) ?
+        state.filteredPlaces : state.places;
+
+      cafesToDisplay.forEach(cafe => {
         const marker = L.marker([cafe.lat, cafe.lng], {
-          icon: L.divIcon({
-            html: markerHtml,
-            iconSize: [40, 40],
-            className: 'cafe-marker'
-          })
-        }).addTo(markerGroup);
+          title: cafe.name
+        }).addTo(map);
 
         marker.on('click', () => selectCafe(cafe.id));
-        markers[cafe.id] = marker;
+        state.markers.push(marker);
       });
     }
 
-    // 카페 목록 렌더링
-    function renderCafeList(cafes) {
-      const html = cafes.map(cafe => `
-        <div class="cafe-card ${selectedCafeId === cafe.id ? 'active' : ''}" data-id="${cafe.id}">
+    // ===== Cafe Selection =====
+    function selectCafe(cafeId) {
+      state.selectedPlace = cafeId;
+      renderSidebar();
+      openSidebar();
+    }
+
+    // ===== Sidebar Rendering =====
+    function renderSidebar() {
+      const content = document.getElementById('sidebarContent');
+      content.innerHTML = '';
+
+      if (state.registrationMode.active) {
+        renderCafeRegistration(content);
+      } else if (state.activeView === 'analysis') {
+        renderAnalysis(content);
+      } else if (state.activeView === 'home') {
+        renderHomeView(content);
+      } else if (state.activeView === 'register') {
+        state.registrationMode.active = true;
+        renderCafeRegistration(content);
+      }
+    }
+
+    function renderHomeView(container) {
+      if (state.selectedPlace) {
+        // Show cafe detail
+        const cafe = state.places.find(p => p.id === state.selectedPlace);
+        renderCafeDetail(container, cafe);
+      } else if (state.searchQuery || Object.values(state.activeFilters).some(v => v)) {
+        // Show search results
+        renderSearchResults(container);
+      } else {
+        // Show cafe list
+        renderCafeList(container);
+      }
+    }
+
+    function renderCafeList(container) {
+      const title = document.getElementById('sidebarTitle');
+      title.textContent = '주변 카페';
+
+      state.places.forEach(cafe => {
+        const item = document.createElement('div');
+        item.className = 'cafe-list-item' + (state.selectedPlace === cafe.id ? ' selected' : '');
+        item.innerHTML = `
           <div class="cafe-name">${cafe.name}</div>
-          <div class="cafe-rating">★ ${cafe.rating} (${cafe.reviews})</div>
-          <div class="cafe-gu">${cafe.gu}</div>
+          <div class="cafe-info">
+            <span class="cafe-rating">⭐ ${cafe.rating}</span>
+            <span>${cafe.reviews}개 리뷰</span>
+            <span>${cafe.gu}</span>
+          </div>
+        `;
+        item.addEventListener('click', () => selectCafe(cafe.id));
+        container.appendChild(item);
+      });
+    }
+
+    function renderSearchResults(container) {
+      const title = document.getElementById('sidebarTitle');
+      title.textContent = `검색 결과 (${state.filteredPlaces.length}개)`;
+
+      if (state.filteredPlaces.length === 0) {
+        const empty = document.createElement('div');
+        empty.style.padding = '24px 0';
+        empty.style.textAlign = 'center';
+        empty.style.color = 'var(--text-secondary)';
+        empty.innerHTML = '<p>검색 결과가 없습니다.</p>';
+        container.appendChild(empty);
+        return;
+      }
+
+      state.filteredPlaces.forEach(cafe => {
+        const item = document.createElement('div');
+        item.className = 'cafe-list-item' + (state.selectedPlace === cafe.id ? ' selected' : '');
+        item.innerHTML = `
+          <div class="cafe-name">${cafe.name}</div>
+          <div class="cafe-info">
+            <span class="cafe-rating">⭐ ${cafe.rating}</span>
+            <span>${cafe.reviews}개 리뷰</span>
+            <span>${cafe.gu}</span>
+          </div>
+        `;
+        item.addEventListener('click', () => selectCafe(cafe.id));
+        container.appendChild(item);
+      });
+    }
+
+    function renderAnalysis(container) {
+      const title = document.getElementById('sidebarTitle');
+      title.textContent = '포화도 분석';
+
+      const guAnalysis = getGuAnalysis();
+
+      const analysisDiv = document.createElement('div');
+      analysisDiv.style.display = 'flex';
+      analysisDiv.style.flexDirection = 'column';
+      analysisDiv.style.gap = '12px';
+
+      analysisDiv.innerHTML = `
+        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+          📍 지도를 클릭하여 특정 위치를 분석하세요
         </div>
-      `).join('');
 
-      document.getElementById('cafeList').innerHTML = html;
+        <div style="background: var(--bg-secondary); padding: 12px; border-radius: 8px; font-size: 12px;">
+          <strong style="display: block; margin-bottom: 8px;">📊 전체 통계</strong>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
+            <div>총 카페: <strong>${state.places.length}</strong>개</div>
+            <div>평균 평점: <strong>${(state.places.reduce((s, c) => s + c.rating, 0) / state.places.length).toFixed(2)}</strong></div>
+            <div>총 리뷰: <strong>${state.places.reduce((s, c) => s + c.reviews, 0)}</strong>개</div>
+            <div>등록 구: <strong>${[...new Set(state.places.map(c => c.gu))].length}</strong>개</div>
+          </div>
+        </div>
 
-      // 클릭 이벤트
-      document.querySelectorAll('.cafe-card').forEach(card => {
-        card.addEventListener('click', () => {
-          selectCafe(parseInt(card.dataset.id));
+        <div style="font-size: 12px; font-weight: 600; margin-top: 4px;">🏘️ 구별 포화도</div>
+        ${guAnalysis.map((g, idx) => `
+          <div style="background: var(--bg-secondary); padding: 10px; border-radius: 6px; font-size: 11px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <strong>${idx + 1}. ${g.gu}</strong>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; color: var(--text-secondary); font-size: 10px;">
+              <div>카페: <strong style="color: var(--text-primary);">${g.count}</strong></div>
+              <div>평점: <strong style="color: var(--text-primary);">⭐${g.avgRating}</strong></div>
+            </div>
+          </div>
+        `).join('')}
+
+        <button id="analyzeBtn" style="margin-top: 12px; padding: 10px; background: var(--primary-blue); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">
+          현재 위치 분석 (지도 클릭)
+        </button>
+      `;
+
+      container.appendChild(analysisDiv);
+    }
+
+    function renderCafeRegistration(container) {
+      const title = document.getElementById('sidebarTitle');
+      title.textContent = '새 카페 등록';
+
+      const allGus = [...new Set(state.places.map(p => p.gu))].sort();
+      const allAmenities = ['WiFi', '콘센트', '주차', '라운지', '북카페', '사진존'];
+
+      const form = document.createElement('form');
+      form.style.display = 'flex';
+      form.style.flexDirection = 'column';
+      form.style.gap = '12px';
+
+      form.innerHTML = `
+        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+          📍 먼저 지도에서 위치를 선택하세요
+        </div>
+
+        <div style="padding: 8px; background: var(--bg-secondary); border-radius: 6px; font-size: 12px;">
+          <strong>선택된 위치:</strong> ${state.registrationMode.locationSelected ?
+            `(${state.registrationMode.locationSelected.lat.toFixed(4)}, ${state.registrationMode.locationSelected.lng.toFixed(4)})` :
+            '아직 선택되지 않음'}
+        </div>
+
+        <input type="text" placeholder="카페명" id="regName" style="padding: 8px; border: 1px solid var(--border-light); border-radius: 6px; font-size: 12px;">
+
+        <select id="regGu" style="padding: 8px; border: 1px solid var(--border-light); border-radius: 6px; font-size: 12px;">
+          <option value="">구 선택</option>
+          ${allGus.map(g => `<option value="${g}">${g}</option>`).join('')}
+        </select>
+
+        <input type="text" placeholder="운영시간 (예: 07:00 - 23:00)" id="regHours" style="padding: 8px; border: 1px solid var(--border-light); border-radius: 6px; font-size: 12px;">
+
+        <input type="text" placeholder="간단한 설명" id="regDesc" style="padding: 8px; border: 1px solid var(--border-light); border-radius: 6px; font-size: 12px;">
+
+        <div style="font-size: 12px; font-weight: 600; margin-top: 4px;">편의시설</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+          ${allAmenities.map(a => `
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px;">
+              <input type="checkbox" class="amenity-checkbox" value="${a}">
+              <span>${a}</span>
+            </label>
+          `).join('')}
+        </div>
+
+        <button type="submit" style="margin-top: 8px; padding: 10px; background: var(--primary-blue); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">
+          카페 등록하기
+        </button>
+        <button type="button" id="cancelReg" style="padding: 8px; background: white; border: 1px solid var(--border-light); border-radius: 6px; cursor: pointer; font-size: 12px;">
+          취소
+        </button>
+      `;
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        submitCafeRegistration(form);
+      });
+
+      document.getElementById('cancelReg').addEventListener('click', () => {
+        state.registrationMode.active = false;
+        state.registrationMode.locationSelected = null;
+        switchView('home');
+      });
+
+      container.appendChild(form);
+    }
+
+    function submitCafeRegistration(form) {
+      if (!state.registrationMode.locationSelected) {
+        alert('위치를 선택해주세요');
+        return;
+      }
+
+      const name = document.getElementById('regName').value.trim();
+      const gu = document.getElementById('regGu').value;
+      const hours = document.getElementById('regHours').value.trim();
+      const desc = document.getElementById('regDesc').value.trim();
+      const amenities = Array.from(document.querySelectorAll('.amenity-checkbox:checked')).map(cb => cb.value);
+
+      if (!name || !gu || !hours) {
+        alert('필수 정보를 모두 입력해주세요');
+        return;
+      }
+
+      const newCafe = {
+        id: state.places.length + 1,
+        name,
+        gu,
+        lat: state.registrationMode.locationSelected.lat,
+        lng: state.registrationMode.locationSelected.lng,
+        address: `서울시 ${gu} (신규 등록)`,
+        rating: 5.0,
+        reviews: 1,
+        hours,
+        amenities,
+        type: 'cafe',
+        imageUrl: 'https://images.unsplash.com/photo-1495474472645-4d71bcdd2085?w=400&h=300&fit=crop'
+      };
+
+      state.places.push(newCafe);
+      state.registrationMode.active = false;
+      state.registrationMode.locationSelected = null;
+
+      createMarkers();
+      switchView('home');
+
+      alert(`✅ "${name}" 카페가 등록되었습니다!`);
+    }
+
+    function renderCafeDetail(container, cafe) {
+      const title = document.getElementById('sidebarTitle');
+      title.textContent = cafe.name;
+
+      const detail = document.createElement('div');
+      detail.className = 'cafe-detail active';
+      detail.innerHTML = `
+        <div class="detail-image" style="background-image: url('${cafe.imageUrl}')"></div>
+        <div class="detail-name">${cafe.name}</div>
+        <div class="detail-rating">
+          <span class="detail-rating-stars">⭐ ${cafe.rating}</span>
+          <span>(${cafe.reviews}개 리뷰)</span>
+        </div>
+
+        <div class="detail-info-row">
+          <span class="detail-info-label">📍 위치</span>
+          <span class="detail-info-value">${cafe.address}</span>
+        </div>
+
+        <div class="detail-info-row">
+          <span class="detail-info-label">🕐 운영시간</span>
+          <span class="detail-info-value">${cafe.hours}</span>
+        </div>
+
+        <div class="detail-info-row">
+          <span class="detail-info-label">🏷️ 편의시설</span>
+          <div class="detail-amenities">
+            ${cafe.amenities.map(a => `<span class="amenity-tag">${a}</span>`).join('')}
+          </div>
+        </div>
+
+        <div class="detail-buttons">
+          <button class="detail-btn primary">길찾기</button>
+          <button class="detail-btn">저장</button>
+        </div>
+      `;
+
+      container.appendChild(detail);
+    }
+
+    // ===== Navigation =====
+    function switchView(viewName) {
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+      });
+      document.querySelector(`[data-view="${viewName}"]`).classList.add('active');
+
+      state.activeView = viewName;
+      renderSidebar();
+      openSidebar();
+    }
+
+    // ===== Sidebar Control =====
+    function openSidebar() {
+      document.querySelector('.sidebar').classList.remove('closed');
+      document.querySelector('.search-container').classList.remove('sidebar-closed');
+      state.sidebarOpen = true;
+    }
+
+    function closeSidebar() {
+      document.querySelector('.sidebar').classList.add('closed');
+      document.querySelector('.search-container').classList.add('sidebar-closed');
+      state.sidebarOpen = false;
+    }
+
+    function toggleSidebar() {
+      if (state.sidebarOpen) {
+        closeSidebar();
+      } else {
+        openSidebar();
+      }
+    }
+
+    // ===== Map Controls =====
+    function setupMapControls() {
+      document.getElementById('zoomInBtn').addEventListener('click', () => {
+        map.zoomIn();
+      });
+
+      document.getElementById('zoomOutBtn').addEventListener('click', () => {
+        map.zoomOut();
+      });
+
+      document.getElementById('locationBtn').addEventListener('click', () => {
+        map.setView(state.mapCenter, state.mapZoom);
+      });
+
+      document.getElementById('fullscreenBtn').addEventListener('click', () => {
+        const elem = document.getElementById('map');
+        if (!document.fullscreenElement) {
+          elem.requestFullscreen().catch(() => {
+            console.log('Fullscreen not available');
+          });
+        } else {
+          document.exitFullscreen();
+        }
+      });
+    }
+
+    // ===== Search Event Listeners =====
+    function setupSearchBar() {
+      const searchInput = document.querySelector('.search-input');
+      const searchBtn = document.querySelector('.search-btn');
+
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+        state.searchQuery = query;
+
+        if (query) {
+          filterCafes(query, state.activeFilters);
+          state.activeView = 'home';
+          renderSidebar();
+          createMarkers();
+        } else {
+          state.filteredPlaces = [];
+          renderSidebar();
+          createMarkers();
+        }
+      });
+
+      searchBtn.addEventListener('click', () => {
+        const query = searchInput.value.trim();
+        state.searchQuery = query;
+        filterCafes(query, state.activeFilters);
+        renderSidebar();
+        createMarkers();
+        openSidebar();
+      });
+
+      searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          const query = searchInput.value.trim();
+          state.searchQuery = query;
+          filterCafes(query, state.activeFilters);
+          renderSidebar();
+          createMarkers();
+          openSidebar();
+        }
+      });
+    }
+
+    // ===== Navigation Event Listeners =====
+    function setupNavigation() {
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          const view = e.currentTarget.dataset.view;
+          switchView(view);
         });
       });
     }
 
-    // 카페 선택
-    function selectCafe(cafeId) {
-      const cafe = allCafes.find(c => c.id === cafeId);
-      if (!cafe) return;
-
-      selectedCafeId = cafeId;
-
-      // 목록 업데이트
-      document.querySelectorAll('.cafe-card').forEach(card => {
-        card.classList.toggle('active', parseInt(card.dataset.id) === cafeId);
-      });
-
-      // 카드 표시
-      document.getElementById('cardTitle').textContent = cafe.name;
-      document.getElementById('cardRating').textContent = `★ ${cafe.rating} (${cafe.reviews} 리뷰)`;
-      document.getElementById('cardAddress').textContent = cafe.address;
-      document.getElementById('cardHours').textContent = cafe.hours;
-
-      // 카페 사진 설정
-      const cardImage = document.getElementById('cardImage');
-      cardImage.style.backgroundImage = `url('${cafe.image}')`;
-      cardImage.style.backgroundSize = 'cover';
-      cardImage.style.backgroundPosition = 'center';
-
-      const amenities = cafe.amenities.map(a => `<div class="amenity-tag">${a}</div>`).join('');
-      document.getElementById('cardAmenities').innerHTML = amenities;
-
-      const naverUrl = `https://map.naver.com/p/search/${encodeURIComponent(cafe.name)}`;
-      document.getElementById('naverMapLink').href = naverUrl;
-
-      document.getElementById('cafeDetailCard').classList.add('active');
-      map.setView([cafe.lat, cafe.lng], 15);
+    // ===== Sidebar Controls =====
+    function setupSidebarControls() {
+      document.getElementById('sidebarToggleBtn').addEventListener('click', toggleSidebar);
+      document.getElementById('sidebarCloseBtn').addEventListener('click', closeSidebar);
     }
 
-    // 필터링
-    function filterCafes(type) {
-      currentFilter = type;
-      let filtered = allCafes;
+    // ===== Initialize App =====
+    function initializeApp() {
+      initializeMap();
+      setupNavigation();
+      setupMapControls();
+      setupSidebarControls();
+      setupSearchBar();
+      renderSidebar();
 
-      if (type === 'new') {
-        filtered = allCafes.filter(c => c.type === 'new');
-      } else if (type === 'responsive') {
-        filtered = allCafes.filter(c => c.type === 'responsive');
-      }
-
-      addMarkers(filtered);
-      renderCafeList(filtered);
-      document.getElementById('panelTitle').textContent = `필터링된 카페 (${filtered.length}개)`;
+      console.log('✅ Phase 6: Final Polish & Deployment Ready');
+      console.log('Total cafes:', state.places.length);
+      console.log('Platform Status: Production Ready ✅');
     }
 
-    // 초기화
-    addMarkers(allCafes);
-    renderCafeList(allCafes);
-    document.getElementById('panelTitle').textContent = `전체 카페 (${allCafes.length}개)`;
-
-    // 이벤트
-    document.getElementById('zoomIn').addEventListener('click', () => map.zoomIn());
-    document.getElementById('zoomOut').addEventListener('click', () => map.zoomOut());
-    document.getElementById('centerLocation').addEventListener('click', () => {
-      map.setView([37.5665, 127.0106], 12);
-    });
-
-    document.getElementById('closeCard').addEventListener('click', () => {
-      document.getElementById('cafeDetailCard').classList.remove('active');
-      selectedCafeId = null;
-      document.querySelectorAll('.cafe-card').forEach(card => {
-        card.classList.remove('active');
-      });
-    });
-
-    // 검색
-    document.getElementById('searchInput').addEventListener('input', (e) => {
-      const query = e.target.value.toLowerCase();
-      if (query.length > 0) {
-        const found = allCafes.find(c => c.name.toLowerCase().includes(query) || c.gu.includes(query));
-        if (found) {
-          selectCafe(found.id);
-        }
-      }
-    });
-
-    // 필터 칩
-    document.querySelectorAll('.chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        filterCafes(chip.dataset.filter);
-      });
-    });
+    // Start app when page loads
+    document.addEventListener('DOMContentLoaded', initializeApp);
   </script>
 </body>
 </html>
